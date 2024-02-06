@@ -84,8 +84,8 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
   // Car dimensions.
   float car_width = 0.281;
   float car_length = 0.535;
-  float car_wheelbase = 0.5; // TODO double-check with real car
-  float car_height = 0.15;
+  float car_wheelbase = 0.324; // with bumper length might be 0.5
+//  float car_height = 0.15;
 
   // Controller parameters
   unsigned int n_paths = 11;
