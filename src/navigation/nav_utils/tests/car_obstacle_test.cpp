@@ -27,6 +27,36 @@ TEST(ObstacleDetectionTest, free_path_length_straight) {
   ASSERT_TRUE(free_path - expected_free_path < err_tol);
 }
 
+TEST(ObstacleDetectionTest, free_path_to_closes_poa_left) {
+  Eigen::Vector2f w_p_car(1., 0.);
+  Eigen::Vector2f w_p_goal(2., 0.5);
+  float theta = 0.;
+  float curvature = 0.1;
+
+  CarObstacleDetection car_obs_det(0.281, 0.535, 0.5);
+  car_obs_det.setCurrentCurvature(curvature);
+  float path_poa = car_obs_det.freePathToClosestPoA(w_p_goal, w_p_car, theta);
+
+  // Check
+  ASSERT_TRUE(path_poa < 1.5);    // less than sum of sides
+  ASSERT_TRUE(path_poa > 1.);     // more than x-component
+}
+
+TEST(ObstacleDetectionTest, free_path_to_closes_poa_right) {
+  Eigen::Vector2f w_p_car(1., 0.);
+  Eigen::Vector2f w_p_goal(2., -0.5);
+  float theta = 0.;
+  float curvature = -0.1;
+
+  CarObstacleDetection car_obs_det(0.281, 0.535, 0.5);
+  car_obs_det.setCurrentCurvature(curvature);
+  float path_poa = car_obs_det.freePathToClosestPoA(w_p_goal, w_p_car, theta);
+
+  // Check
+  ASSERT_TRUE(path_poa < 1.5);    // less than sum of sides
+  ASSERT_TRUE(path_poa > 1.);     // more than x-component
+}
+
 TEST(ObstacleDetectionTest, free_path_length_not_in_collision) {
   // Car measurements
   float car_w = 0.281;
@@ -289,24 +319,25 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_left) {
   std::vector<float> free_path_eval(object_points.size());
 
   // Compute free path length and optimal control (velocity) to apply
-  float min_free_path, cmd_vel, dist_to_goal;
+  float min_free_path_idx, cmd_vel, dist_to_goal;
   Eigen::Vector2f p_goal(3., 0.);
   Eigen::Vector2f aug_r(0., 0.);    // vector (0, r)
 
   // Loop over candidate curvatures
-  float c_max = 0.2;
-  float c_min = -0.2;
+  float c_max = 1.;
+  float c_min = -1.;
   float curvature_inc = (c_max - c_min) / n_paths;
 
   // Create vector of curvatures to loop through them and recall min curve
   for (unsigned int i = 0; i < n_paths; i++) {
-    curvature_vec.push_back(c_max - i*curvature_inc);
+    curvature_vec[i] = (c_max - i*curvature_inc);
   }
 
   // Initialize
   float x = 0.;
   float y = 0.;
   float theta =  0.;
+  float phi;                // angle formed by free path
   Eigen::Matrix2f c_R_w;    // rotation of car w.r.t. world
   Eigen::Vector2f w_p_car;  // position of car w.r.t. world
 
@@ -322,7 +353,6 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_left) {
 
     // Evaluate all candidate curves
     score_mgr.resetIdx();
-//  for (float curvature = c_max; curvature > c_min; curvature -= curvature_inc) {
     for (auto &curvature: curvature_vec) {
       // Update curvature
       car_obs_det.setCurrentCurvature(curvature);
@@ -332,35 +362,42 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_left) {
       // Evaluate score of all points
       for (unsigned int p_i = 0; p_i < object_points_base.size(); p_i++) {
         free_path_eval[p_i] = car_obs_det.estimateFreePath(object_points_base[p_i]);
-        //TODO limit free path to radial distance
+
+        // chop free path to radial distance
+        float path_poa = car_obs_det.freePathToClosestPoA(p_goal, w_p_car, theta);
+        free_path_eval[p_i] = std::min(free_path_eval[p_i], path_poa);
       }
       // the shortest path corresponds to the point that it will collide with first
-      min_free_path = std::min_element(free_path_eval.begin(), free_path_eval.end()) - free_path_eval.begin();
+      min_free_path_idx = std::min_element(free_path_eval.begin(), free_path_eval.end()) - free_path_eval.begin();
       Eigen::Vector2f fp_end_location;
-      float phi = min_free_path / aug_r(1);
-      fp_end_location(0) = x + aug_r(1) * std::cos(phi);
-      fp_end_location(1) = y + aug_r(1) * std::sin(phi);
-      dist_to_goal = (p_goal - fp_end_location).norm();
+      phi = free_path_eval[min_free_path_idx] / aug_r(1);
+      fp_end_location(0) = x + aug_r(1) * std::sin(phi);
+      fp_end_location(1) = y + aug_r(1) * (1. - std::cos(phi));
+      dist_to_goal = (p_goal - w_p_car).norm();
+//      dist_to_goal = (p_goal - fp_end_location).norm();
 
       // Update score manager
-      score_mgr.computeAndStore(min_free_path, clearance, dist_to_goal);
+      score_mgr.computeAndStore(free_path_eval[min_free_path_idx], clearance, dist_to_goal);
 
-      // Add any important assertion for each curve here
+      // Check that we are not drastically moving away from the goal
+      ASSERT_TRUE(std::abs(dist_to_goal - p_goal.x()) < p_goal.x());
     }
 
     // Choose path with max score and apply control
     unsigned int max_score_idx = score_mgr.getMaximumScoreIdx();
 
     // Update control
-    cmd_vel = cpath_calc.compute1DTOC(free_path_eval[max_score_idx]);
+    cmd_vel = cpath_calc.compute1DTOC(score_mgr.getDistanceToGoal(max_score_idx));
+    float  optim_curve = curvature_vec[max_score_idx];
 
     // Integration (kinematics)
-    x += cmd_vel * std::cos(curvature_vec[max_score_idx]) * dt;
-    y += cmd_vel * std::sin(curvature_vec[max_score_idx]) * dt;
-    theta += cmd_vel * curvature_vec[max_score_idx] * dt;
+    x += cmd_vel * std::cos(optim_curve) * dt;
+    y += cmd_vel * std::sin(optim_curve) * dt;
+    theta += cmd_vel * optim_curve * dt;
   }
   Eigen::Vector2f end_car_pos(x, y);
-  ASSERT_TRUE((p_goal - end_car_pos).norm() < err_tol);
+  ASSERT_TRUE((p_goal - end_car_pos).norm() < 0.03);
+  ASSERT_TRUE(abs(cmd_vel) < err_tol);
 }
 
 } // nav_utils

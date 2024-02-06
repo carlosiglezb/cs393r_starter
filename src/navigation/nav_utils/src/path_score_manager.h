@@ -22,6 +22,7 @@ public:
   // Getters
   float getWDtg() const;
   float getWClear() const;
+  float getDistanceToGoal(unsigned int idx) const;
 
   // Setters
   void setWDtg(float new_w_dtg);
@@ -34,6 +35,8 @@ private:
   float w_dtg_;
   // overall scores
   std::vector<float> scores_;
+  // distances to goal corresponding to scores
+  std::vector<float> dists_to_goal_;
   // index counter
   unsigned int idx_;
 

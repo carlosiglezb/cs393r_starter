@@ -17,6 +17,8 @@ CarObstacleDetection::CarObstacleDetection(float car_width,
                                            float car_height) {
   r_min_ = 0.;
   r_max_ = 0.;
+  phi_ = 0.;
+  phi_poa_ = 0.;
   current_curvature_ = 0.;
   curvature_zero_thresh_ = 0.01;
 
@@ -93,6 +95,32 @@ float CarObstacleDetection::estimateFreePath(const Eigen::Vector2f &point_cloud_
     b_p_in_collision_ = false;
     return point_cloud_2D.norm();   // TODO replace with range of laser?
   }
+}
+
+float CarObstacleDetection::freePathToClosestPoA(const Eigen::Vector2f &w_p_goal,
+                                                 const Eigen::Vector2f &w_p_car,
+                                                 const float theta) {
+  float r = float(1.) / current_curvature_;
+  // Get coordinate of center of circle in world coordinates
+  Eigen::Vector2f w_p_circ = w_p_car;
+  Eigen::Matrix2f w_R_c;
+  w_R_c << cos(theta), -sin(theta),
+            sin(theta), cos(theta);
+  Eigen::Vector2f base_up_vec(0., r);
+  Eigen::Vector2f w_up_vec = w_R_c * base_up_vec;
+  w_p_circ += w_up_vec;
+  
+  // Vector from center of circle towards goal of length 'r'
+  Eigen::Vector2f vec_circ_to_g = (w_p_goal - w_p_circ);
+  vec_circ_to_g = vec_circ_to_g * abs(r) / vec_circ_to_g.norm();
+
+  // Get angle between vectors
+  phi_poa_ = acos(float (-w_up_vec.transpose() * vec_circ_to_g) / (r * r));
+  return abs(r) * phi_poa_;
+}
+
+bool CarObstacleDetection::isInCollision() const {
+  return b_p_in_collision_;
 }
 
 void CarObstacleDetection::setCurrentCurvature(float curvature) {

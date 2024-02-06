@@ -34,6 +34,12 @@ public:
      */
     float estimateFreePath(const Eigen::Vector2f& point_cloud_2D);
 
+    float freePathToClosestPoA(const Eigen::Vector2f &w_p_goal,
+                               const Eigen::Vector2f &w_p_car,
+                               const float theta);
+
+    bool isInCollision() const;
+
     // Setters
     void setCurrentCurvature(float curvature);
 
@@ -50,9 +56,11 @@ private:
     bool b_p_in_collision_;
     // Angle of path
     float phi_;
+    // Angle of path trimmed by closest point of approach
+    float phi_poa_;
 
     // Paths TODO not being used, move to Obstacle Avoidance
-    std::vector<std::shared_ptr<CurvedPath>> paths_;
+//    std::vector<std::shared_ptr<CurvedPath>> paths_;
 
     // Car dimensions
     float car_width_;
