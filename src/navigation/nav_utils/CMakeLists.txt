@@ -14,13 +14,7 @@ INCLUDE_DIRECTORIES(src)
 INCLUDE_DIRECTORIES(tests)
 
 FILE(GLOB SOURCES src/*)
-#ADD_EXECUTABLE(nav_utils
-#        src/path_score_manager.cc
-#        src/curved_path.cc)
-#ADD_LIBRARY(nav_utils
-#        src/path_score_manager.cc
-#        src/curved_path.cc
-#        ${HEADERS})
+
 ADD_LIBRARY(nav_utils ${SOURCES})
 
 ADD_EXECUTABLE(path_scores_test tests/path_score_test.cpp)
@@ -31,3 +25,6 @@ TARGET_LINK_LIBRARIES(curved_path_test ${GTEST_LIBRARIES} nav_utils)
 
 ADD_EXECUTABLE(obstacle_detection_test tests/car_obstacle_test.cpp)
 TARGET_LINK_LIBRARIES(obstacle_detection_test ${GTEST_LIBRARIES} nav_utils)
+
+ADD_EXECUTABLE(obstacle_avoidance_test tests/car_obstacle_avoidance_test.cpp)
+TARGET_LINK_LIBRARIES(obstacle_avoidance_test ${GTEST_LIBRARIES} nav_utils)

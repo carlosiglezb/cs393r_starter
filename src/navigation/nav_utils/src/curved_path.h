@@ -15,11 +15,11 @@ public:
   float compute1DTOC(float dist_to_goal);
 
   // Getters
-  const float getCurvature() const;
-  const float getVelocity() const;
-  const float getFreeLength() const;
-  const float getDistToGoal() const;
-  const float getDt() const;
+  float getCurvature() const;
+  float getVelocity() const;
+  float getFreeLength() const;
+  float getDistToGoal() const;
+  float getDt() const;
 
   // Setters
   void setCurvature(float curvature);

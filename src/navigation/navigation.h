@@ -24,6 +24,8 @@
 #include "eigen3/Eigen/Dense"
 
 #include "vector_map/vector_map.h"
+#include <memory>
+#include "nav_utils/src/car_obstacle_avoidance.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -31,6 +33,8 @@
 namespace ros {
   class NodeHandle;
 }  // namespace ros
+
+using namespace nav_utils;
 
 namespace navigation {
 
@@ -100,6 +104,9 @@ class Navigation {
   float nav_goal_angle_;
   // Map of the environment.
   vector_map::VectorMap map_;
+
+  // Obstacle Avoidance controller
+  std::shared_ptr<CarObstacleAvoidance> oa_controller_;
 };
 
 }  // namespace navigation

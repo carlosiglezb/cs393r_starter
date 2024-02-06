@@ -6,9 +6,9 @@
 #define NAV_UTILS_CAR_OBSTACLE_AVOIDANCE_H
 
 #include <memory>
-#include <car_obstacle_detection.h>
-#include <path_score_manager.h>
-#include <curved_path.h>
+#include "car_obstacle_detection.h"
+#include "path_score_manager.h"
+#include "curved_path.h"
 
 namespace nav_utils {
 

@@ -47,23 +47,23 @@ float CurvedPath::compute1DTOC(float dist_to_goal) {
   return velocity_cmd_;
 }
 
-const float CurvedPath::getCurvature() const {
+float CurvedPath::getCurvature() const {
   return curvature_;
 }
 
-const float CurvedPath::getVelocity() const {
+float CurvedPath::getVelocity() const {
   return velocity_cmd_;
 }
 
-const float CurvedPath::getFreeLength() const {
+float CurvedPath::getFreeLength() const {
   return free_path_length_;
 }
 
-const float CurvedPath::getDistToGoal() const {
+float CurvedPath::getDistToGoal() const {
   return dist_to_goal_;
 }
 
-const float CurvedPath::getDt() const {
+float CurvedPath::getDt() const {
   return dt_;
 }
 

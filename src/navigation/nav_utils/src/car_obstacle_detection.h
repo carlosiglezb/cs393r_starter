@@ -9,7 +9,7 @@
 #include <memory>
 #include <eigen3/Eigen/Core>
 
-#include <curved_path.h>
+#include "curved_path.h"
 
 namespace nav_utils {
 

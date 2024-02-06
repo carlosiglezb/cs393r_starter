@@ -42,6 +42,7 @@ using std::vector;
 
 using namespace math_util;
 using namespace ros_helpers;
+using namespace nav_utils;
 
 namespace {
 ros::Publisher drive_pub_;
@@ -79,6 +80,18 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
   global_viz_msg_ = visualization::NewVisualizationMessage(
       "map", "navigation_global");
   InitRosHeader("base_link", &drive_msg_.header);
+
+  // Car dimensions.
+  float car_width = 0.281;
+  float car_length = 0.535;
+  float car_wheelbase = 0.5; // TODO double-check with real car
+  float car_height = 0.15;
+
+  // Controller parameters
+  unsigned int n_paths = 11;
+  unsigned int n_scan_points = 1081;
+  oa_controller_ = std::make_shared<CarObstacleAvoidance>(car_width, car_length,
+                                        car_wheelbase, n_paths, n_scan_points);
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -128,9 +141,14 @@ void Navigation::Run() {
   
   // The latest observed point cloud is accessible via "point_cloud_"
 
-  // Eventually, you will have to set the control values to issue drive commands:
+  Eigen::Vector2f w_p_goal(1., 0.);     // goal in world frame
+  oa_controller_->doControl(point_cloud_, w_p_goal);
+
+  // Drive commands:
    drive_msg_.curvature = 0.;
    drive_msg_.velocity = 1.;
+   drive_msg_.curvature = oa_controller_->getCmdCurvature();
+   drive_msg_.velocity = oa_controller_->getCmdVel();
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();

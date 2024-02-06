@@ -19,7 +19,7 @@ CarObstacleAvoidance::CarObstacleAvoidance(float car_width,
   score_mgr_ = std::make_shared<PathScoreManager>(n_paths);
   toc_controller_ = std::make_shared<CurvedPath>(0.);
 
-  // Initialize path parameters
+  // Initialize path parameters (min/max curvature)
   c_min_ = -1.;
   c_max_ = 1.;
 
@@ -41,7 +41,7 @@ CarObstacleAvoidance::CarObstacleAvoidance(float car_width,
   }
 }
 
-CarObstacleAvoidance::~CarObstacleAvoidance() {}
+CarObstacleAvoidance::~CarObstacleAvoidance() = default;
 
 void CarObstacleAvoidance::doControl(const std::vector<Eigen::Vector2f> &point_cloud,
                                      const Eigen::Vector2f &w_p_goal) {
