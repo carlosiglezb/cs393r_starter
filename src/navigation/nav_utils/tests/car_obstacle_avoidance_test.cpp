@@ -104,9 +104,11 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_right) {
   std::vector<float> free_path_eval(object_points.size());
 
   // Create car obstacle detection
-  CarObstacleAvoidance car_obs_avoid(car_w, car_l, car_wb,
+  std::shared_ptr<CarObstacleAvoidance> car_obs_avoid;
+
+  car_obs_avoid = std::make_shared<CarObstacleAvoidance>(car_w, car_l, car_wb,
                                      n_paths, object_points.size());
-  float dt = car_obs_avoid.getControllerDt();
+  float dt = car_obs_avoid->getControllerDt();
 
   // Compute free path length and optimal control (velocity) to apply
   float cmd_vel, optim_curve;
@@ -130,11 +132,11 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_right) {
     }
 
     // Do control
-    car_obs_avoid.doControl(object_points_base, p_goal);
+    car_obs_avoid->doControl(object_points_base, p_goal);
 
     // Update control
-    cmd_vel = car_obs_avoid.getCmdVel();
-    optim_curve = car_obs_avoid.getCmdCurvature();
+    cmd_vel = car_obs_avoid->getCmdVel();
+    optim_curve = car_obs_avoid->getCmdCurvature();
 
     // Integration (kinematics)
     x += cmd_vel * std::cos(optim_curve) * dt;

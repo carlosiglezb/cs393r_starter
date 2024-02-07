@@ -19,6 +19,7 @@ CarObstacleDetection::CarObstacleDetection(float car_width,
   r_max_ = 0.;
   phi_ = 0.;
   phi_poa_ = 0.;
+  c_vec_.setZero();
   current_curvature_ = 0.;
   curvature_zero_thresh_ = 0.01;
 
@@ -45,6 +46,8 @@ void CarObstacleDetection::computeMinMaxCurvatureRadius(float curvature) {
   int sign = sgn(curvature);
   r_min_ = r - sign * car_width_;
   r_max_ = sign * std::sqrt( (r + sign*car_width_)*(r + sign*car_width_) + car_length_*car_length_ );
+  c_vec_.setZero();
+  c_vec_.y() = r;
 }
 
 float CarObstacleDetection::estimateFreePath(const Eigen::Vector2f &point_cloud_2D) {
@@ -68,7 +71,6 @@ float CarObstacleDetection::estimateFreePath(const Eigen::Vector2f &point_cloud_
   // If we reach here, we're not moving with curvature near zero
   float r = float(1.) / current_curvature_;
   float theta, omega;
-  Eigen::Vector2f c_vec(0., r);
 
   // Using trig, we compute the free path length as follows
   if (r > 0){
@@ -80,7 +82,7 @@ float CarObstacleDetection::estimateFreePath(const Eigen::Vector2f &point_cloud_
   }
 
   // Check if point is inside collision path
-  float radial_dist_to_point = (point_cloud_2D - c_vec).norm();
+  float radial_dist_to_point = (point_cloud_2D - c_vec_).norm();
   if ((radial_dist_to_point >= r_min_) && (radial_dist_to_point <=  r_max_) && theta > 0.){
     // if turning left
     b_p_in_collision_ = true;
@@ -117,6 +119,23 @@ float CarObstacleDetection::freePathToClosestPoA(const Eigen::Vector2f &w_p_goal
   // Get angle between vectors
   phi_poa_ = acos(float (-w_up_vec.transpose() * vec_circ_to_g) / (r * r));
   return abs(r) * phi_poa_;
+}
+
+float CarObstacleDetection::computeClearance(const Eigen::Vector2f &point) {
+  float clearance = 0.;
+  float dist_to_point = (c_vec_ - point).norm();
+
+  // Compute clearance
+  if (dist_to_point > c_vec_.y()) {
+    // if point hits front of car
+    clearance = dist_to_point - r_max_;
+  } else if (dist_to_point < c_vec_.y()) {
+    // if point is inside path towards inner radius
+    clearance = r_min_ - dist_to_point;
+  }
+
+  // if clearance is negative, we will eventually hit the point
+  return clearance;
 }
 
 bool CarObstacleDetection::isInCollision() const {

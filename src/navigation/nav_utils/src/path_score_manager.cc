@@ -11,9 +11,9 @@
 
 namespace nav_utils {
     PathScoreManager::PathScoreManager(unsigned int n_paths) :
-            scores_(n_paths), dists_to_goal_(n_paths){
+            scores_(n_paths), dists_to_goal_(n_paths), fp_dist_(n_paths) {
       w_clear_ = 0.1;
-      w_dtg_ = -0.8;
+      w_dtg_ = -100.;
       idx_ = 0;
     }
 
@@ -25,6 +25,10 @@ namespace nav_utils {
       scores_[idx_] = computeScores(path_length, clearance, distance_to_goal);
       dists_to_goal_[idx_] = distance_to_goal;
       idx_++;
+    }
+
+    void PathScoreManager::saveFreePaths(const float free_path) {
+      fp_dist_[idx_] = free_path;
     }
 
     float PathScoreManager::computeScores(float path_length,
@@ -50,8 +54,12 @@ namespace nav_utils {
       return w_clear_;
     }
 
-    float PathScoreManager::getDistanceToGoal(unsigned int idx) const {
+    float PathScoreManager::getDistanceToGoal(const unsigned int idx) const {
       return dists_to_goal_[idx];
+    }
+
+    float PathScoreManager::getFpDistance(const unsigned int idx) const {
+      return fp_dist_[idx];
     }
 
     void PathScoreManager::setWDtg(float new_w_dtg) {

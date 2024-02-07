@@ -17,10 +17,11 @@ CurvedPath::CurvedPath(float curvature) {
   max_vel_ = 1.;    // 1 m/s
   max_acc_ = 4.;    // 4 m/s/s
   max_dec_ = -4.;   // -4 m/s/s
-  dt_ = 0.025;    // 40 hz TODO check actual value
+  dt_ = 0.05;    // 20 hz TODO check actual value
+//  dt_ = 0.025;    // 40 hz TODO check actual value
 
   allowed_max_vel_err_ = 0.01;
-  allowed_max_pos_err_ = 0.01;  // 1 cm off is fine
+  allowed_max_pos_err_ = 0.03;  // 1 cm off is fine
 }
 
 CurvedPath::~CurvedPath() {}

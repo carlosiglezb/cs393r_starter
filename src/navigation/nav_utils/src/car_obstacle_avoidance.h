@@ -29,6 +29,7 @@ public:
     float getCmdVel() const;
     float getCmdCurvature() const;
     float getControllerDt() const;
+    Eigen::Vector2f getPosEst() const;
 
 private:
     std::shared_ptr<CarObstacleDetection> obstacle_detection_;

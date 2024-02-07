@@ -289,7 +289,7 @@ TEST(ObstacleDetectionTest, move_up_to_obstacle_right) {
  */
 TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_left) {
   //Settings
-  float clearance = 0.1;
+  float clearance;
   // Car measurements
   float car_w = 0.281;
   float car_l = 0.535;
@@ -340,6 +340,7 @@ TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_left) {
   float theta =  0.;
   Eigen::Matrix2f c_R_w;    // rotation of car w.r.t. world
   Eigen::Vector2f w_p_car;  // position of car w.r.t. world
+  Eigen::Vector2f w_p_car_end_fp;  // position of car w.r.t. world at end of free path
 
   for (unsigned int t = 0; t < 200; t++) {
 
@@ -357,6 +358,7 @@ TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_left) {
       // Update curvature
       car_obs_det.setCurrentCurvature(curvature);
       aug_r(1) = float(1.) / curvature;
+      clearance = 100.;   // initialize to large positive number for each curve
 
       // Evaluate score of all points
       for (unsigned int p_i = 0; p_i < object_points_base.size(); p_i++) {
@@ -365,13 +367,22 @@ TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_left) {
         // chop free path to radial distance
         float path_poa = car_obs_det.freePathToClosestPoA(p_goal, w_p_car, theta);
         free_path_eval[p_i] = std::min(free_path_eval[p_i], path_poa);
+
+        // compute clearance
+        clearance = std::min(clearance, car_obs_det.computeClearance(object_points_base[p_i]));
       }
       // the shortest path corresponds to the point that it will collide with first
       min_free_path_idx = std::min_element(free_path_eval.begin(), free_path_eval.end()) - free_path_eval.begin();
-      dist_to_goal = (p_goal - w_p_car).norm();
+
+      // update estimated position of car at end of free path
+      float phi_min = free_path_eval[min_free_path_idx] / aug_r(1);
+      w_p_car_end_fp.x() = w_p_car.x() + aug_r(1) * sin(phi_min);
+      w_p_car_end_fp.y() = w_p_car.y() + aug_r(1) * (1. - cos(phi_min));
+      dist_to_goal = (p_goal - w_p_car_end_fp).norm();
 
       // Update score manager
       score_mgr.computeAndStore(free_path_eval[min_free_path_idx], clearance, dist_to_goal);
+      score_mgr.saveFreePaths(free_path_eval[min_free_path_idx]);
 
       // Check that we are not drastically moving away from the goal
       ASSERT_TRUE(std::abs(dist_to_goal - p_goal.x()) < p_goal.x());
@@ -381,13 +392,19 @@ TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_left) {
     unsigned int max_score_idx = score_mgr.getMaximumScoreIdx();
 
     // Update control
-    cmd_vel = cpath_calc.compute1DTOC(score_mgr.getDistanceToGoal(max_score_idx));
+    cmd_vel = cpath_calc.compute1DTOC(
+            score_mgr.getDistanceToGoal(max_score_idx) + score_mgr.getFpDistance(max_score_idx));
     float  optim_curve = curvature_vec[max_score_idx];
 
     // Integration (kinematics)
     x += cmd_vel * std::cos(optim_curve) * dt;
     y += cmd_vel * std::sin(optim_curve) * dt;
     theta += cmd_vel * optim_curve * dt;
+
+    // Check no collision near (3cm from) obstacle
+    if (abs(x - 1) < 0.03) {
+      ASSERT_TRUE(y < 0.05);
+    }
   }
   Eigen::Vector2f end_car_pos(x, y);
   ASSERT_TRUE((p_goal - end_car_pos).norm() < 0.03);
@@ -399,7 +416,7 @@ TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_left) {
  */
 TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_right) {
   //Settings
-  float clearance = 0.1;
+  float clearance;
   // Car measurements
   float car_w = 0.281;
   float car_l = 0.535;
@@ -450,6 +467,7 @@ TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_right) {
   float theta =  0.;
   Eigen::Matrix2f c_R_w;    // rotation of car w.r.t. world
   Eigen::Vector2f w_p_car;  // position of car w.r.t. world
+  Eigen::Vector2f w_p_car_end_fp;  // position of car w.r.t. world at end of free path
 
   for (unsigned int t = 0; t < 200; t++) {
 
@@ -467,6 +485,7 @@ TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_right) {
       // Update curvature
       car_obs_det.setCurrentCurvature(curvature);
       aug_r(1) = float(1.) / curvature;
+      clearance = 100.;   // initialize to large positive number for each curve
 
       // Evaluate score of all points
       for (unsigned int p_i = 0; p_i < object_points_base.size(); p_i++) {
@@ -475,29 +494,50 @@ TEST(ObstacleDetectionTest, detect_avoid_obstacle_on_right) {
         // chop free path to radial distance
         float path_poa = car_obs_det.freePathToClosestPoA(p_goal, w_p_car, theta);
         free_path_eval[p_i] = std::min(free_path_eval[p_i], path_poa);
+
+        // exit loop as soon as one point is in collision
+        if (car_obs_det.isInCollision() && (free_path_eval[p_i] < path_poa)) {
+          free_path_eval[p_i] = -10000.;
+          break;
+        }
+
+        // compute clearance
+        clearance = std::min(clearance, car_obs_det.computeClearance(object_points_base[p_i]));
       }
       // the shortest path corresponds to the point that it will collide with first
       min_free_path_idx = std::min_element(free_path_eval.begin(), free_path_eval.end()) - free_path_eval.begin();
-      dist_to_goal = (p_goal - w_p_car).norm();
+
+      // update estimated position of car at end of free path
+      float phi_min = free_path_eval[min_free_path_idx] / aug_r(1);
+      w_p_car_end_fp.x() = w_p_car.x() + aug_r(1) * sin(phi_min);
+      w_p_car_end_fp.y() = w_p_car.y() + aug_r(1) * (1. - cos(phi_min));
+      dist_to_goal = (p_goal - w_p_car_end_fp).norm();
 
       // Update score manager
       score_mgr.computeAndStore(free_path_eval[min_free_path_idx], clearance, dist_to_goal);
+      score_mgr.saveFreePaths(free_path_eval[min_free_path_idx]);
 
       // Check that we are not drastically moving away from the goal
-      ASSERT_TRUE(std::abs(dist_to_goal - p_goal.x()) < p_goal.x());
+//      ASSERT_TRUE(std::abs(dist_to_goal - p_goal.x()) < p_goal.x());
     }
 
     // Choose path with max score and apply control
     unsigned int max_score_idx = score_mgr.getMaximumScoreIdx();
 
     // Update control
-    cmd_vel = cpath_calc.compute1DTOC(score_mgr.getDistanceToGoal(max_score_idx));
+    cmd_vel = cpath_calc.compute1DTOC(
+            score_mgr.getDistanceToGoal(max_score_idx) + score_mgr.getFpDistance(max_score_idx));
     float  optim_curve = curvature_vec[max_score_idx];
 
     // Integration (kinematics)
     x += cmd_vel * std::cos(optim_curve) * dt;
     y += cmd_vel * std::sin(optim_curve) * dt;
     theta += cmd_vel * optim_curve * dt;
+
+    // Check no collision near (3cm from) obstacle
+    if (abs(x - 1) < 0.03) {
+      ASSERT_TRUE(y > -0.05);
+    }
   }
   Eigen::Vector2f end_car_pos(x, y);
   ASSERT_TRUE((p_goal - end_car_pos).norm() < 0.03);

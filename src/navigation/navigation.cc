@@ -33,6 +33,7 @@
 #include "shared/ros/ros_helpers.h"
 #include "navigation.h"
 #include "visualization/visualization.h"
+#include <iostream>
 
 using Eigen::Vector2f;
 using amrl_msgs::AckermannCurvatureDriveMsg;
@@ -89,7 +90,9 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
 
   // Controller parameters
   unsigned int n_paths = 11;
-  unsigned int n_scan_points = 1081;
+  unsigned int n_scan_points = 481;   // total are 1081
+
+  // Obstacle Avoidance Controller
   oa_controller_ = std::make_shared<CarObstacleAvoidance>(car_width, car_length,
                                         car_wheelbase, n_paths, n_scan_points);
 }
@@ -127,6 +130,7 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
 }
 
 void Navigation::Run() {
+  Eigen::Vector2f w_p_goal(4., 0.);     // goal in world frame
   // This function gets called 20 times a second to form the control loop.
   
   // Clear previous visualizations.
@@ -141,14 +145,20 @@ void Navigation::Run() {
   
   // The latest observed point cloud is accessible via "point_cloud_"
 
-  Eigen::Vector2f w_p_goal(1., 0.);     // goal in world frame
+  //
+  // Obstacle Avoidance Control loop
+  //
   oa_controller_->doControl(point_cloud_, w_p_goal);
 
   // Drive commands:
-   drive_msg_.curvature = 0.;
-   drive_msg_.velocity = 1.;
    drive_msg_.curvature = oa_controller_->getCmdCurvature();
    drive_msg_.velocity = oa_controller_->getCmdVel();
+
+   // Debug messages
+   Eigen::Vector2f est_pos_x = oa_controller_->getPosEst();
+   std::cout << "(cmd_vel, cmd_curv): (" << drive_msg_.velocity << ", " << drive_msg_.curvature << ")" << std::endl;
+   std::cout << "Pos (est): (" << est_pos_x.x() << ", " << est_pos_x.y() << ")" << std::endl;
+   std::cout << "Pos (act): (" << odom_loc_.x() << ", " << odom_loc_.y() << ")" << std::endl;
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();

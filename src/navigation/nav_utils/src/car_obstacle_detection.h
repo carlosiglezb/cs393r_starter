@@ -37,6 +37,7 @@ public:
     float freePathToClosestPoA(const Eigen::Vector2f &w_p_goal,
                                const Eigen::Vector2f &w_p_car,
                                const float theta);
+    float computeClearance(const Eigen::Vector2f &point);
 
     bool isInCollision() const;
 
@@ -46,6 +47,8 @@ public:
     // Getters
     float getPhi() const;
 private:
+    // Center of curvature w.r.t. rear wheels
+    Eigen::Vector2f c_vec_;
     // Min radius that can hit a point, given fixed radius of curvatures
     float r_min_;
     // Max radius that can hit a point, given fixed radius of curvatures
@@ -58,9 +61,6 @@ private:
     float phi_;
     // Angle of path trimmed by closest point of approach
     float phi_poa_;
-
-    // Paths TODO not being used, move to Obstacle Avoidance
-//    std::vector<std::shared_ptr<CurvedPath>> paths_;
 
     // Car dimensions
     float car_width_;
