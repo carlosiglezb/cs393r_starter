@@ -75,6 +75,7 @@ DEFINE_string(map, "GDC1", "Name of vector map file");
 bool run_ = true;
 sensor_msgs::LaserScan last_laser_msg_;
 Navigation* navigation_ = nullptr;
+bool b_print_debug = false;
 
 void LaserCallback(const sensor_msgs::LaserScan& msg) {
   if (FLAGS_v > 0) {
@@ -84,9 +85,9 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   }
   // Location of the laser on the robot. Assumes the laser is forward-facing.
   const Vector2f kLaserLoc(0.2, 0);
-
-  static vector<Vector2f> point_cloud_;
-  // TODO Convert the LaserScan to a point cloud
+  unsigned int n_scan_reduced = 481;  // use 120 deg fov
+  static vector<Vector2f> point_cloud_(n_scan_reduced);
+  // Convert the LaserScan to a point cloud
   // The LaserScan parameters are accessible as follows:
   // msg.angle_increment // Angular increment between subsequent rays
   // msg.angle_max // Angle of the first ray
@@ -95,23 +96,30 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   // msg.range_min // Minimum observable range
   // msg.ranges[i] // The range of the i'th ray
   Eigen::Vector2f p_i;
-  unsigned int n_scan_reduced = 481;  // use 120 deg fov
   float angle_i_deg = float(-60);     // initial scanned point [deg]
   float angle_i_rad = angle_i_deg * M_PI / 180.;  // initial scanned point [rad]
   float range_min_deg = msg.range_min * 180. / M_PI;
   float angle_inc_deg = msg.angle_increment * 180. / M_PI;
   unsigned int start_idx = abs(range_min_deg - angle_i_deg) / angle_inc_deg;
+  unsigned int idx = 0;
   for (unsigned int i = start_idx; i < start_idx + n_scan_reduced; i++) {
     p_i.setZero();
 
     // TODO add safeguard against ranges < range_min and ranges > range_max
-    p_i.x() = msg.ranges[i] * cos(angle_i_rad);
-    p_i.y() = msg.ranges[i] * sin(angle_i_rad);
-    point_cloud_.push_back(p_i);
+    p_i.x() = msg.ranges[i] * cos(angle_i_rad) + kLaserLoc.x();
+    p_i.y() = msg.ranges[i] * sin(angle_i_rad) + kLaserLoc.y();
+    point_cloud_[idx] = p_i;
     angle_i_rad += msg.angle_increment;
+    idx++;
   }
   navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
+  if(b_print_debug) {
+      printf("Print scan info: "
+             "angle_min = %f, angle_inc = %f, n_points = %li\n",
+         msg.angle_min, msg.angle_increment, msg.ranges.size());
+      b_print_debug = false;
+  }
 }
 
 void OdometryCallback(const nav_msgs::Odometry& msg) {
