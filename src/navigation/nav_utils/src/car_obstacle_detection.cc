@@ -3,6 +3,7 @@
 //
 
 #include "car_obstacle_detection.h"
+#include "../../../shared/math/geometry.h"
 #include <math.h>
 
 namespace nav_utils {
@@ -20,6 +21,7 @@ CarObstacleDetection::CarObstacleDetection(float car_width,
   phi_ = 0.;
   phi_poa_ = 0.;
   c_vec_.setZero();
+  current_pc_.setZero();
   current_curvature_ = 0.;
   curvature_zero_thresh_ = 0.01;
 
@@ -36,7 +38,7 @@ CarObstacleDetection::~CarObstacleDetection() {}
 
 void CarObstacleDetection::computeMinMaxCurvatureRadius(float curvature) {
   // Do not compute if curvature is close to zero
-  if (abs(curvature) < curvature_zero_thresh_) {
+  if (std::abs(curvature) < curvature_zero_thresh_) {
     r_min_ = 0.;
     r_max_ = 0.;
     return;
@@ -54,16 +56,18 @@ float CarObstacleDetection::estimateFreePath(const Eigen::Vector2f &point_cloud_
   // Get parameters of interest
   float x = point_cloud_2D[0];
   float y = point_cloud_2D[1];
+  current_pc_ = point_cloud_2D;
 
   // ignore points behind car
   if (x < 0) {
+    b_p_in_collision_ = false;
     return 10.;
   }
 
   // if curvature is near zero, assume straight motion
   if (std::abs(current_curvature_) < curvature_zero_thresh_) {
     // Check if point in collision (in front of car and within car width)
-    if ((x < 0) || (std::abs(y) > car_width_)) {   // not in collision, skip point
+    if ((x < 0) || (std::abs(y) > (car_width_/ 2.))) {   // not in collision, skip point
       b_p_in_collision_ = false;
       return point_cloud_2D.norm();   // TODO replace with range of laser?
     }
@@ -103,6 +107,33 @@ float CarObstacleDetection::estimateFreePath(const Eigen::Vector2f &point_cloud_
   }
 }
 
+// Assume points given in local (base) car coordinates
+float CarObstacleDetection::freePathToClosestPoA(const Eigen::Vector2f &c_p_goal) {
+
+  float free_path;
+  Eigen::Vector2f origin(0., 0.);
+  // If curvature close to zero, assume moving in a straight line
+  if (current_curvature_ < curvature_zero_thresh_) {
+    Eigen::Vector2f horizontal_vec(5., 0);
+    Eigen::Vector2f free_path_vec(0., 0.);
+    free_path_vec = geometry::ProjectPointOntoLineSegment(c_p_goal, origin, horizontal_vec);
+    free_path = free_path_vec.x();
+  } else {    // find angle between points
+    float r = float(1.) / current_curvature_;
+    Eigen::Vector2f c_up_vec(0., -current_curvature_);
+    Eigen::Vector2f vec_circ_to_g;
+
+    vec_circ_to_g = (c_up_vec) + c_p_goal;
+    origin.y() = r;
+    float angle = acos( float(c_up_vec.transpose() * vec_circ_to_g) /
+            (std::abs(r) * vec_circ_to_g.norm()));
+    free_path = std::abs(r) * angle;
+  }
+
+  return free_path;
+}
+
+// Assumes points given in global / world coordinates
 float CarObstacleDetection::freePathToClosestPoA(const Eigen::Vector2f &w_p_goal,
                                                  const Eigen::Vector2f &w_p_car,
                                                  const float theta) {
@@ -115,14 +146,24 @@ float CarObstacleDetection::freePathToClosestPoA(const Eigen::Vector2f &w_p_goal
   Eigen::Vector2f base_up_vec(0., r);
   Eigen::Vector2f w_up_vec = w_R_c * base_up_vec;
   w_p_circ += w_up_vec;
-  
+
+  // If curvature is close to zero, assume straight motion
+  if (std::abs(current_curvature_) < curvature_zero_thresh_) {
+    // Project goal to line moving straight (horizontal)
+    Eigen::Vector2f c_point_fwd(10., 0);
+    Eigen::Vector2f w_point_fwd = w_R_c * c_point_fwd;
+    Eigen::Vector2f w_p_goal_proj =
+            geometry::ProjectPointOntoLineSegment(w_p_goal, w_p_car, w_point_fwd);
+    return (w_p_goal_proj - w_p_car).norm();
+  }
+
   // Vector from center of circle towards goal of length 'r'
   Eigen::Vector2f vec_circ_to_g = (w_p_goal - w_p_circ);
-  vec_circ_to_g = vec_circ_to_g * abs(r) / vec_circ_to_g.norm();
+  vec_circ_to_g = vec_circ_to_g * std::abs(r) / vec_circ_to_g.norm();
 
   // Get angle between vectors
   phi_poa_ = acos(float (-w_up_vec.transpose() * vec_circ_to_g) / (r * r));
-  return abs(r) * phi_poa_;
+  return std::abs(r) * phi_poa_;
 }
 
 float CarObstacleDetection::computeClearance(const Eigen::Vector2f &point) {
@@ -130,10 +171,10 @@ float CarObstacleDetection::computeClearance(const Eigen::Vector2f &point) {
   float dist_to_point = (c_vec_ - point).norm();
 
   // Compute clearance
-  if (dist_to_point > abs(c_vec_.y())) {
+  if (dist_to_point > std::abs(c_vec_.y())) {
     // if point hits front of car
     clearance = dist_to_point - r_max_;
-  } else if (dist_to_point < abs(c_vec_.y())) {
+  } else if (dist_to_point < std::abs(c_vec_.y())) {
     // if point is inside path towards inner radius
     clearance = r_min_ - dist_to_point;
   }

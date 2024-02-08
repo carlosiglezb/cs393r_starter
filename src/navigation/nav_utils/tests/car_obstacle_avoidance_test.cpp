@@ -17,17 +17,17 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_left) {
   float car_wb = 0.5;
 
   // Number of paths to evaluate
-  unsigned int n_paths = 15;
+  unsigned int n_paths = 7;
 
   // Point cloud data for testing
   std::vector<Eigen::Vector2f> object_points;
 
   // Create object (points) in world frame
-  for (float pc_y = 0.3; pc_y > 0.1; pc_y -= 0.025) {
+  for (float pc_y = 0.3; pc_y > 0.0; pc_y -= 0.025) {
     object_points.emplace_back(1., pc_y);
   }
   // Create wall (points) in world frame behind obstacle and copy to local frame
-  for (float pc_y = 0.1; pc_y > -0.3; pc_y -= 0.025) {
+  for (float pc_y = 0.0; pc_y > -0.3; pc_y -= 0.025) {
     object_points.emplace_back(4., pc_y);
   }
   std::vector<Eigen::Vector2f> object_points_base = object_points;
@@ -98,11 +98,11 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_right) {
   std::vector<Eigen::Vector2f> object_points;
 
   // Create wall (points) in world frame behind obstacle
-  for (float pc_y = 0.3; pc_y > -0.1; pc_y -= 0.025) {
+  for (float pc_y = 0.3; pc_y > -0.; pc_y -= 0.025) {
     object_points.emplace_back(4., pc_y);
   }
   // Create object (points) in world frame and copy to local frame
-  for (float pc_y = -0.1; pc_y > -0.3; pc_y -= 0.025) {
+  for (float pc_y = -0.; pc_y > -0.3; pc_y -= 0.025) {
     object_points.emplace_back(1., pc_y);
   }
   std::vector<Eigen::Vector2f> object_points_base = object_points;

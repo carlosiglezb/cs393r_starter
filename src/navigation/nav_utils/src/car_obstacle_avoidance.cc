@@ -37,7 +37,7 @@ CarObstacleAvoidance::CarObstacleAvoidance(float car_width,
   theta_ = 0.;
 
   // Create vector of curvatures to sample / evaluate
-  float curvature_inc = (c_max_ - c_min_) / float(n_paths);
+  float curvature_inc = (c_max_ - c_min_) / float(n_paths - 1);
   for (unsigned int i = 0; i < n_paths; i++) {
     candidate_curvatures_[i] = (c_max_ - i * curvature_inc);
   }
@@ -68,13 +68,16 @@ void CarObstacleAvoidance::doControl(const std::vector<Eigen::Vector2f> &point_c
 
       // chop free path to radial distance
       float path_poa = obstacle_detection_->freePathToClosestPoA(w_p_goal, w_p_car_, theta_);
-      free_paths_pc_vec_[p_i] = std::min(free_paths_pc_vec_[p_i], path_poa);
+      free_paths_pc_vec_[p_i] = std::min(free_paths_pc_vec_[p_i], path_poa);  // TODO check if this should be moved
 
-      // exit loop as soon as one point is in collision
-      if (obstacle_detection_->isInCollision() && (free_paths_pc_vec_[p_i] < path_poa)) {
-        free_paths_pc_vec_[p_i] = -10000.;
-        clearance = 0.;
-        break;
+      // Discard point if in collision path and is before reaching the goal
+      if (obstacle_detection_->isInCollision() && (point_cloud[p_i].norm() < w_p_goal.norm())) {
+        // exit loop as soon as one point is in collision
+        if (obstacle_detection_->isInCollision() && (free_paths_pc_vec_[p_i] < path_poa)) {
+          free_paths_pc_vec_[p_i] = -10000.;
+          clearance = 0.;
+          break;
+        }
       }
 
       // compute clearance
@@ -88,10 +91,16 @@ void CarObstacleAvoidance::doControl(const std::vector<Eigen::Vector2f> &point_c
 
     // update estimated position of car at end of free path
     if (curve_collision_free_fp_ > 0.) {
-      float phi_min = free_paths_pc_vec_[min_free_path_idx] / r;
-      w_p_car_end_fp.x() = w_p_car_.x() + r * sin(phi_min);
-      w_p_car_end_fp.y() = w_p_car_.y() + r * (1. - cos(phi_min));
-      dist_to_goal = (w_p_goal - w_p_car_end_fp).norm();
+      if (std::abs(curvature) < 0.01) {  // assuming straight line
+        w_p_car_end_fp.x() = w_p_car_.x() + curve_collision_free_fp_ * std::cos(theta_);
+        w_p_car_end_fp.y() = w_p_car_.y() + curve_collision_free_fp_ * std::sin(theta_);
+        dist_to_goal = (w_p_goal - w_p_car_end_fp).norm();
+      } else {
+        float phi_min = free_paths_pc_vec_[min_free_path_idx] / r;
+        w_p_car_end_fp.x() = w_p_car_.x() + r * std::sin(phi_min);
+        w_p_car_end_fp.y() = w_p_car_.y() + r * (1. - std::cos(phi_min));
+        dist_to_goal = (w_p_goal - w_p_car_end_fp).norm();
+      }
     } else {  // if current path leads to a collision, use current distance to goal
 //      curve_collision_free_fp_ = 0.;
       dist_to_goal = (w_p_goal - w_p_car_).norm();

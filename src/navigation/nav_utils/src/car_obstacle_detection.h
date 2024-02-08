@@ -34,6 +34,8 @@ public:
      */
     float estimateFreePath(const Eigen::Vector2f& point_cloud_2D);
 
+    float freePathToClosestPoA(const Eigen::Vector2f &c_p_goal);
+
     float freePathToClosestPoA(const Eigen::Vector2f &w_p_goal,
                                const Eigen::Vector2f &w_p_car,
                                const float theta);
@@ -49,6 +51,8 @@ public:
 private:
     // Center of curvature w.r.t. rear wheels
     Eigen::Vector2f c_vec_;
+    // Store current point cloud being considered in computations
+    Eigen::Vector2f current_pc_;
     // Min radius that can hit a point, given fixed radius of curvatures
     float r_min_;
     // Max radius that can hit a point, given fixed radius of curvatures
