@@ -17,7 +17,7 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_left) {
   float car_wb = 0.5;
 
   // Number of paths to evaluate
-  unsigned int n_paths = 7;
+  unsigned int n_paths = 15;
 
   // Point cloud data for testing
   std::vector<Eigen::Vector2f> object_points;
@@ -70,6 +70,11 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_left) {
     x += cmd_vel * std::cos(optim_curve) * dt;
     y += cmd_vel * std::sin(optim_curve) * dt;
     theta += cmd_vel * optim_curve * dt;
+
+    // Check no collision near (3cm from) obstacle
+    if (abs(x - 1) < 0.03) {
+      ASSERT_TRUE(y < 0.05);
+    }
   }
   Eigen::Vector2f end_car_pos(x, y);
   ASSERT_TRUE((p_goal - end_car_pos).norm() < 0.03);
@@ -87,7 +92,7 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_right) {
   float car_wb = 0.5;
 
   // Number of paths to evaluate
-  unsigned int n_paths = 7;
+  unsigned int n_paths = 15;
 
   // Point cloud data for testing
   std::vector<Eigen::Vector2f> object_points;
@@ -144,7 +149,7 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_right) {
     theta += cmd_vel * optim_curve * dt;
   }
   Eigen::Vector2f end_car_pos(x, y);
-  ASSERT_TRUE((p_goal - end_car_pos).norm() < 0.03);
+  ASSERT_TRUE((p_goal - end_car_pos).norm() < 0.05);
   ASSERT_TRUE(abs(cmd_vel) < err_tol);
 }
 

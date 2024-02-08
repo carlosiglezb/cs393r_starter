@@ -25,6 +25,10 @@ public:
     void doControl(const std::vector<Eigen::Vector2f> &point_cloud,
                    const Eigen::Vector2f &w_p_goal);
 
+private:
+    void resetFreePathsVec();
+
+public:
     // Getters
     float getCmdVel() const;
     float getCmdCurvature() const;

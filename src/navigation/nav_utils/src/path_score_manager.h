@@ -16,9 +16,10 @@ public:
 
   void computeAndStore(float path_length, float clearance, float distance_to_goal);
   float computeScores(float path_length, float clearance, float distance_to_goal) const;
-  void saveFreePaths(const float free_path_dist_to_goal);
+  void saveFreePaths(const float free_path_dist_to_goal); //TODO move to private
   int getMaximumScoreIdx() const;
   void resetIdx();    // TODO add general reset (and reset scores as well)?
+  void reset();
 
   // Getters
   float getWDtg() const;
@@ -37,6 +38,8 @@ private:
   float w_dtg_;
   // overall scores
   std::vector<float> scores_;
+  // clearances
+  std::vector<float> clearances_;
   // distances to goal corresponding to scores
   std::vector<float> dists_to_goal_;
   // Free path distances before hitting object or reaching PoA

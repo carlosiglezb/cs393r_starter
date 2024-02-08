@@ -44,8 +44,8 @@ void CarObstacleDetection::computeMinMaxCurvatureRadius(float curvature) {
 
   float r = float(1.) / curvature;
   int sign = sgn(curvature);
-  r_min_ = r - sign * car_width_;
-  r_max_ = sign * std::sqrt( (r + sign*car_width_)*(r + sign*car_width_) + car_length_*car_length_ );
+  r_min_ = r - sign * (car_width_/2.);
+  r_max_ = sign * std::sqrt( (r + sign*(car_width_/2.))*(r + sign*(car_width_/2.)) + car_length_*car_length_ );
   c_vec_.setZero();
   c_vec_.y() = r;
 }
@@ -54,6 +54,11 @@ float CarObstacleDetection::estimateFreePath(const Eigen::Vector2f &point_cloud_
   // Get parameters of interest
   float x = point_cloud_2D[0];
   float y = point_cloud_2D[1];
+
+  // ignore points behind car
+  if (x < 0) {
+    return 10.;
+  }
 
   // if curvature is near zero, assume straight motion
   if (std::abs(current_curvature_) < curvature_zero_thresh_) {
@@ -75,23 +80,22 @@ float CarObstacleDetection::estimateFreePath(const Eigen::Vector2f &point_cloud_
   // Using trig, we compute the free path length as follows
   if (r > 0){
     theta = std::atan2(x, r - y);   // angle from base to given point cloud
-    omega = std::atan2(car_length_, r - car_width_);  // (angle) base -> free path
+    omega = std::atan2(car_length_, r - (car_width_/2.));  // (angle) base -> free path
   } else {
     theta = std::atan2(-x, y - r);   // angle from base to given point cloud
-    omega = std::atan2(-car_length_, car_width_ - r);  // (angle) base -> free path
+    omega = std::atan2(-car_length_, (car_width_/2.) - r);  // (angle) base -> free path
   }
 
   // Check if point is inside collision path
   float radial_dist_to_point = (point_cloud_2D - c_vec_).norm();
-  if ((radial_dist_to_point >= r_min_) && (radial_dist_to_point <=  r_max_) && theta > 0.){
+  phi_ = theta - omega;
+  if ((phi_ > 0.) && (r > 0.) && (radial_dist_to_point >= r_min_) && (radial_dist_to_point <=  r_max_) && theta > 0.){
     // if turning left
     b_p_in_collision_ = true;
-    phi_ = theta - omega;
     return r * phi_;   // free path length
-  } else if ((-radial_dist_to_point <= r_min_) && (-radial_dist_to_point >=  r_max_) && theta < 0.) {
+  } else if ((phi_ < 0.) && (r < 0.) && (-radial_dist_to_point <= r_min_) && (-radial_dist_to_point >=  r_max_) && theta < 0.) {
     // if turning right
     b_p_in_collision_ = true;
-    phi_ = theta - omega;
     return r * phi_;   // free path length
   } else {  // not in collision path
     b_p_in_collision_ = false;
@@ -126,10 +130,10 @@ float CarObstacleDetection::computeClearance(const Eigen::Vector2f &point) {
   float dist_to_point = (c_vec_ - point).norm();
 
   // Compute clearance
-  if (dist_to_point > c_vec_.y()) {
+  if (dist_to_point > abs(c_vec_.y())) {
     // if point hits front of car
     clearance = dist_to_point - r_max_;
-  } else if (dist_to_point < c_vec_.y()) {
+  } else if (dist_to_point < abs(c_vec_.y())) {
     // if point is inside path towards inner radius
     clearance = r_min_ - dist_to_point;
   }

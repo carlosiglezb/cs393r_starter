@@ -11,9 +11,12 @@
 
 namespace nav_utils {
     PathScoreManager::PathScoreManager(unsigned int n_paths) :
-            scores_(n_paths), dists_to_goal_(n_paths), fp_dist_(n_paths) {
-      w_clear_ = 0.1;
-      w_dtg_ = -100.;
+            scores_(n_paths),
+            clearances_(n_paths),
+            dists_to_goal_(n_paths),
+            fp_dist_(n_paths) {
+      w_clear_ = 0.2;
+      w_dtg_ = -250.;
       idx_ = 0;
     }
 
@@ -24,6 +27,8 @@ namespace nav_utils {
                                            float distance_to_goal) {
       scores_[idx_] = computeScores(path_length, clearance, distance_to_goal);
       dists_to_goal_[idx_] = distance_to_goal;
+      clearances_[idx_] = clearance;
+      saveFreePaths(path_length);
       idx_++;
     }
 
@@ -40,6 +45,22 @@ namespace nav_utils {
     int PathScoreManager::getMaximumScoreIdx() const {
       int maxElementIndex = std::max_element(scores_.begin(),scores_.end()) - scores_.begin();
       return maxElementIndex;
+    }
+
+    void PathScoreManager::reset() {
+      for (auto & score : scores_) {
+        score = 0.;
+      }
+      for (auto & dist : dists_to_goal_) {
+        dist = 0.;
+      }
+      for (auto & fp : fp_dist_) {
+        fp = 0.;
+      }
+      for (auto & cl : clearances_) {
+        cl = 0.;
+      }
+      resetIdx();
     }
 
     void PathScoreManager::resetIdx() {

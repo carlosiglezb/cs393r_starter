@@ -86,10 +86,10 @@ TEST(ObstacleDetectionTest, free_path_length_left_turn) {
   float car_wb = 0.5;
 
   // Point cloud data for testing
-  Eigen::Vector2f point_cloud(1., 0.3);
+  Eigen::Vector2f point_cloud(1., 0.1);
 
   // Lazy check: compare length against straight line
-  Eigen::Vector2f front_car_to_p(point_cloud[0] - car_l, point_cloud[1]);
+  Eigen::Vector2f front_car_to_p(point_cloud[0], point_cloud[1]);
   float free_path_overapprox = front_car_to_p.norm();
 
   // Create car obstacle detection
@@ -111,10 +111,10 @@ TEST(ObstacleDetectionTest, free_path_length_right_turn) {
   float car_wb = 0.5;
 
   // Point cloud data for testing
-  Eigen::Vector2f point_cloud(1., -0.3);
+  Eigen::Vector2f point_cloud(1., -0.1);
 
   // Lazy check: compare length against straight line
-  Eigen::Vector2f front_car_to_p(point_cloud[0] - car_l, point_cloud[1]);
+  Eigen::Vector2f front_car_to_p(point_cloud[0], point_cloud[1]);
   float free_path_overapprox = front_car_to_p.norm();
 
   // Create car obstacle detection

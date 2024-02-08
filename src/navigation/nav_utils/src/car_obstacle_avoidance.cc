@@ -48,14 +48,16 @@ CarObstacleAvoidance::~CarObstacleAvoidance() = default;
 void CarObstacleAvoidance::doControl(const std::vector<Eigen::Vector2f> &point_cloud,
                                      const Eigen::Vector2f &w_p_goal) {
   float dist_to_goal, r;
-  float clearance = 100.;
+  float clearance;
   unsigned int min_free_path_idx, max_score_idx;
   float dt = getControllerDt();
   Eigen::Vector2f w_p_car_end_fp;
 
   // Start clean
-  score_mgr_->resetIdx();
+  score_mgr_->reset();
   for (auto & curvature : candidate_curvatures_) {
+    clearance = 100.;
+    resetFreePathsVec();
     // Update current curvature
     r = float(1.) / curvature;
     obstacle_detection_->setCurrentCurvature(curvature);
@@ -68,6 +70,13 @@ void CarObstacleAvoidance::doControl(const std::vector<Eigen::Vector2f> &point_c
       float path_poa = obstacle_detection_->freePathToClosestPoA(w_p_goal, w_p_car_, theta_);
       free_paths_pc_vec_[p_i] = std::min(free_paths_pc_vec_[p_i], path_poa);
 
+      // exit loop as soon as one point is in collision
+      if (obstacle_detection_->isInCollision() && (free_paths_pc_vec_[p_i] < path_poa)) {
+        free_paths_pc_vec_[p_i] = -10000.;
+        clearance = 0.;
+        break;
+      }
+
       // compute clearance
       clearance = std::min(clearance, obstacle_detection_->computeClearance(point_cloud[p_i]));
     }
@@ -78,29 +87,37 @@ void CarObstacleAvoidance::doControl(const std::vector<Eigen::Vector2f> &point_c
     curve_collision_free_fp_ = free_paths_pc_vec_[min_free_path_idx];
 
     // update estimated position of car at end of free path
-    float phi_min = free_paths_pc_vec_[min_free_path_idx] / r;
-    w_p_car_end_fp.x() = w_p_car_.x() + r * sin(phi_min);
-    w_p_car_end_fp.y() = w_p_car_.y() + r * (1. - cos(phi_min));
-    dist_to_goal = (w_p_goal - w_p_car_end_fp).norm();
-
+    if (curve_collision_free_fp_ > 0.) {
+      float phi_min = free_paths_pc_vec_[min_free_path_idx] / r;
+      w_p_car_end_fp.x() = w_p_car_.x() + r * sin(phi_min);
+      w_p_car_end_fp.y() = w_p_car_.y() + r * (1. - cos(phi_min));
+      dist_to_goal = (w_p_goal - w_p_car_end_fp).norm();
+    } else {  // if current path leads to a collision, use current distance to goal
+//      curve_collision_free_fp_ = 0.;
+      dist_to_goal = (w_p_goal - w_p_car_).norm();
+    }
 
     // Update score manager
     score_mgr_->computeAndStore(curve_collision_free_fp_, clearance, dist_to_goal);
-    score_mgr_->saveFreePaths(curve_collision_free_fp_);
   }
 
   // Choose path with max score and apply control
   max_score_idx = score_mgr_->getMaximumScoreIdx();
 
   // Update control
-  cmd_vel_ = toc_controller_->compute1DTOC(
-          score_mgr_->getDistanceToGoal(max_score_idx) + score_mgr_->getFpDistance(max_score_idx));
+  cmd_vel_ = toc_controller_->compute1DTOC(score_mgr_->getFpDistance(max_score_idx));
   cmd_curvature_ = candidate_curvatures_[max_score_idx];
 
   // Update state estimate for next time step
   w_p_car_.x() += cmd_vel_ * std::cos(cmd_curvature_) * dt;
   w_p_car_.y() += cmd_vel_ * std::sin(cmd_curvature_) * dt;
   theta_ += cmd_vel_ * cmd_curvature_ * dt;
+}
+
+void CarObstacleAvoidance::resetFreePathsVec() {
+  for (auto & path : free_paths_pc_vec_) {
+    path = 0.;
+  }
 }
 
 float CarObstacleAvoidance::getCmdVel() const {
