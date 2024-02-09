@@ -68,6 +68,7 @@ private:
 
     // Car dimensions
     float car_width_;
+    float car_w_margin_;
     float car_length_;
     float car_wheelbase_;
     float car_height_;
