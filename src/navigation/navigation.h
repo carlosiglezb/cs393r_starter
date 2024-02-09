@@ -109,6 +109,7 @@ class Navigation {
 
   // Obstacle Avoidance controller
   std::shared_ptr<CarObstacleAvoidance> oa_controller_;
+  Eigen::Vector2f w_p_goal_;
 };
 
 }  // namespace navigation

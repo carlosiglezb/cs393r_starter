@@ -26,6 +26,7 @@ CarObstacleDetection::CarObstacleDetection(float car_width,
   curvature_zero_thresh_ = 0.01;
 
   car_width_ = car_width;
+  car_w_margin_ = 0.15;
   car_length_ = car_length;
   car_wheelbase_ = car_wheelbase;
   car_height_ = car_height;
@@ -45,9 +46,10 @@ void CarObstacleDetection::computeMinMaxCurvatureRadius(float curvature) {
   }
 
   float r = float(1.) / curvature;
+  float car_ext_width = car_width_ + float(2.) * car_w_margin_;
   int sign = sgn(curvature);
-  r_min_ = r - sign * (car_width_/2.);
-  r_max_ = sign * std::sqrt( (r + sign*(car_width_/2.))*(r + sign*(car_width_/2.)) + car_length_*car_length_ );
+  r_min_ = r - sign * (car_ext_width/2.);
+  r_max_ = sign * std::sqrt( (r + sign*(car_ext_width/2.))*(r + sign*(car_ext_width/2.)) + car_length_*car_length_ );
   c_vec_.setZero();
   c_vec_.y() = r;
 }

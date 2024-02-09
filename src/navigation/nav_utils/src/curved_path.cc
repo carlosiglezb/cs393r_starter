@@ -15,8 +15,8 @@ CurvedPath::CurvedPath(float curvature) {
 
   // Robot limits
   max_vel_ = 1.;    // 1 m/s
-  max_acc_ = 4.;    // 4 m/s/s
-  max_dec_ = -4.;   // -4 m/s/s
+  max_acc_ = 1.;    // 4 m/s/s
+  max_dec_ = -1.;   // -4 m/s/s
   dt_ = 0.05;    // 20 hz TODO check actual value
 //  dt_ = 0.025;    // 40 hz TODO check actual value
 
