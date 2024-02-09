@@ -22,6 +22,7 @@ public:
   void reset();
 
   // Getters
+  float getClearance(const unsigned int path_idx);
   float getWDtg() const;
   float getWClear() const;
   float getDistanceToGoal(const unsigned int idx) const;

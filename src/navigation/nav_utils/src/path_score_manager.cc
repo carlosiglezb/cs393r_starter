@@ -67,6 +67,10 @@ namespace nav_utils {
       idx_ = 0;
     }
 
+    float PathScoreManager::getClearance(const unsigned int path_idx) {
+      return clearances_[path_idx];
+    }
+
     float PathScoreManager::getWDtg() const {
       return w_dtg_;
     }

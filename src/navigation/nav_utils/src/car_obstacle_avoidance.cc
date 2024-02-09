@@ -137,12 +137,28 @@ float CarObstacleAvoidance::getCmdCurvature() const {
   return cmd_curvature_;
 }
 
+float CarObstacleAvoidance::getCurvature(const unsigned int path_idx) const {
+  return candidate_curvatures_[path_idx];
+}
+
+float CarObstacleAvoidance::getFpDistance(const unsigned int path_idx) const {
+  return score_mgr_->getFpDistance(path_idx);
+}
+
 float CarObstacleAvoidance::getControllerDt() const {
   return toc_controller_->getDt();
 }
 
 Eigen::Vector2f CarObstacleAvoidance::getPosEst() const {
   return w_p_car_;
+}
+
+float CarObstacleAvoidance::getClearance(const unsigned int path_idx) const {
+  return score_mgr_->getClearance(path_idx);
+}
+
+unsigned int CarObstacleAvoidance::getMaxScoreIdx() const {
+  return score_mgr_->getMaximumScoreIdx();
 }
 
 } // nav_utils

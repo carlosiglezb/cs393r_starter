@@ -24,14 +24,18 @@ public:
 
     void doControl(const std::vector<Eigen::Vector2f> &point_cloud,
                    const Eigen::Vector2f &w_p_goal);
+    float getClearance(const unsigned int path_idx) const;
 
 private:
     void resetFreePathsVec();
 
 public:
     // Getters
+    unsigned int getMaxScoreIdx() const;
     float getCmdVel() const;
     float getCmdCurvature() const;
+    float getCurvature(const unsigned int path_idx) const;
+    float getFpDistance(const unsigned int path_idx) const;
     float getControllerDt() const;
     Eigen::Vector2f getPosEst() const;
 
