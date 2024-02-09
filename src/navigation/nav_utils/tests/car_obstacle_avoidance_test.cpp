@@ -60,7 +60,11 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_left) {
     }
 
     // Do control
-    car_obs_avoid.doControl(object_points_base, p_goal);
+    Eigen::Vector3f twist_meas;
+    twist_meas.x() = x;
+    twist_meas.y() = y;
+    twist_meas.z() = theta;
+    car_obs_avoid.doControl(object_points_base, p_goal, twist_meas);
 
     // Update control
     cmd_vel = car_obs_avoid.getCmdVel();
@@ -137,7 +141,11 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_on_right) {
     }
 
     // Do control
-    car_obs_avoid->doControl(object_points_base, p_goal);
+    Eigen::Vector3f twist_meas;
+    twist_meas.x() = x;
+    twist_meas.y() = y;
+    twist_meas.z() = theta;
+    car_obs_avoid->doControl(object_points_base, p_goal, twist_meas);
 
     // Update control
     cmd_vel = car_obs_avoid->getCmdVel();
@@ -216,7 +224,11 @@ TEST(ObstacleAvoidanceTest, avoid_obstacle_tilted_cw) {
         }
 
         // Do control
-        car_obs_avoid->doControl(object_points_base, p_goal);
+        Eigen::Vector3f twist_meas;
+        twist_meas.x() = x;
+        twist_meas.y() = y;
+        twist_meas.z() = theta;
+        car_obs_avoid->doControl(object_points_base, p_goal, twist_meas);
 
         // Update control
         cmd_vel = car_obs_avoid->getCmdVel();
