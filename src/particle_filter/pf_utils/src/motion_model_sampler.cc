@@ -1,0 +1,128 @@
+//
+// Created by Carlos on 2/18/24.
+//
+
+#include "motion_model_sampler.h"
+
+using namespace pose_2d;
+
+namespace pf_utils {
+
+MotionModelSampler::MotionModelSampler(float wheel_base,
+                                       float curvature,
+                                       float delta_t,
+                                       unsigned int n_samples) :
+        particles_(n_samples) {
+  wheel_base_ = wheel_base;
+  curvature_ = curvature;
+  delta_t_ = delta_t;
+  n_samples_ = n_samples;
+
+  // tuning parameters
+  k1_ = 1e-5;
+  k2_ = 1e-4;
+  k3_ = 1e-8;
+  k4_ = 1e-8;
+}
+
+MotionModelSampler::~MotionModelSampler() = default;
+
+void MotionModelSampler::initialize(const Pose2Df &curent_pose) {
+  for (auto & sample : particles_) {
+    sample = curent_pose;
+  }
+}
+
+void MotionModelSampler::predictParticles(const Eigen::Vector2f &current_control) {
+  for (auto & sample : particles_) {
+    sample = sampleNextState(sample, current_control);
+  }
+}
+
+Pose2Df MotionModelSampler::sampleNextState(const Pose2Df &x_t,
+                                            const Eigen::Vector2f &u_t_plus_1) {
+  Pose2Df x_t_plus_1;
+  // simple change of variables for better bookkeeping
+  float v_t = u_t_plus_1.x();
+  float w_t = u_t_plus_1.y();
+  float xt = x_t.translation.x();
+  float yt = x_t.translation.y();
+  float thetat = x_t.angle;
+
+  // intermediate parameters
+  float steering_angle = std::atan(wheel_base_ * curvature_);
+  Eigen::Vector2f vel;
+  vel.x() = v_t * std::cos(thetat + steering_angle);
+  vel.y() = v_t * std::sin(thetat + steering_angle);
+  float eps_x = sampleNormal(k1_, vel.norm(), 0., w_t);
+  float eps_y = sampleNormal(0., vel.norm(), k2_, w_t);
+  float eps_theta = sampleNormal(k3_, vel.norm(), k4_, w_t);
+
+  x_t_plus_1.translation.x() = xt + vel.x() * delta_t_ + eps_x;
+  x_t_plus_1.translation.y() = yt + vel.y() * delta_t_ + eps_y;
+  x_t_plus_1.angle = thetat + w_t * delta_t_ + eps_theta;
+
+  return x_t_plus_1;
+}
+
+void MotionModelSampler::updateCurvature(const float curvature) {
+  curvature_ = curvature;
+}
+
+Pose2Df MotionModelSampler::sampleNextStateFromVelModel(const Pose2Df &x_t,
+                                            const Eigen::Vector2f &u_t_plus_1) {
+  Pose2Df x_t_plus_1;
+  // simple change of variables for better bookkeeping
+  float v_t = u_t_plus_1.x();
+  float w_t = u_t_plus_1.y();
+  float xt = x_t.translation.x();
+  float yt = x_t.translation.y();
+  float thetat = x_t.angle;
+
+  // intermediate parameters
+  float v_hat, omega_hat, gamma_hat;
+
+  // perturb commanded control parameters by noise drawn from kinematic model
+  v_hat = v_t + sampleNormal(k1_, v_t, 0., w_t);
+  omega_hat = w_t + sampleNormal(0., v_t, k2_, w_t);
+  gamma_hat = sampleNormal(k3_, v_t, k4_, w_t);
+
+  // generate sample's new pose
+  float v_w_hat = v_hat / omega_hat;
+  float wt_dt = omega_hat * delta_t_;
+  x_t_plus_1.translation.x() =  xt - v_w_hat * std::sin(thetat)
+          + v_w_hat * std::sin(thetat + wt_dt);
+  x_t_plus_1.translation.y() =  yt + v_w_hat * std::cos(thetat)
+          - v_w_hat * std::cos(thetat + wt_dt);
+  x_t_plus_1.angle = thetat + wt_dt + gamma_hat * delta_t_;
+
+  // intermediate parameters
+  float steering_angle = std::atan(wheel_base_ * curvature_);
+  Eigen::Vector2f vel;
+  vel.x() = v_t * std::cos(thetat + steering_angle);
+  vel.y() = v_t * std::sin(thetat + steering_angle);
+  float eps_x = sampleNormal(k1_, vel.norm(), 0., w_t);
+  float eps_y = sampleNormal(0., vel.norm(), k2_, w_t);
+  float eps_theta = sampleNormal(k3_, vel.norm(), k4_, w_t);
+
+  x_t_plus_1.translation.x() = xt + vel.x() * delta_t_ + eps_x;
+  x_t_plus_1.translation.y() = yt + vel.y() * delta_t_ + eps_y;
+  x_t_plus_1.angle = thetat + w_t * delta_t_ + eps_theta;
+
+  return x_t_plus_1;
+}
+
+float MotionModelSampler::sampleNormal(const float k1,
+                                       const float vel,
+                                       const float k2,
+                                       const float omega) {
+  float std_dev = std::sqrt(k1 * std::abs(vel) + k2 * std::abs(omega));
+  std::normal_distribution<float> normal_dist(0, std_dev);
+  return normal_dist(generator_);
+}
+
+std::vector<Pose2Df> MotionModelSampler::getParticles() {
+  return particles_;
+}
+
+} // pf_utils
