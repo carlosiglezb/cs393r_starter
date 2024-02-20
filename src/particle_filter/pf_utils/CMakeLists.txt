@@ -13,3 +13,6 @@ INCLUDE_DIRECTORIES(tests)
 FILE(GLOB SOURCES src/*)
 
 ADD_LIBRARY(particle_filter_utils ${SOURCES})
+
+ADD_EXECUTABLE(motion_model_test tests/motion_model_test.cpp)
+TARGET_LINK_LIBRARIES(motion_model_test ${GTEST_LIBRARIES} particle_filter_utils)
