@@ -19,7 +19,7 @@ MotionModelSampler::MotionModelSampler(float wheel_base,
   n_samples_ = n_samples;
 
   // tuning parameters
-  k1_ = 1e-5;
+  k1_ = 1e-6;
   k2_ = 1e-4;
   k3_ = 1e-8;
   k4_ = 1e-8;
@@ -51,15 +51,27 @@ Pose2Df MotionModelSampler::sampleNextState(const Pose2Df &x_t,
 
   // intermediate parameters
   float steering_angle = std::atan(wheel_base_ * curvature_);
-  Eigen::Vector2f vel;
-  vel.x() = v_t * std::cos(thetat + steering_angle);
-  vel.y() = v_t * std::sin(thetat + steering_angle);
-  float eps_x = sampleNormal(k1_, vel.norm(), 0., w_t);
-  float eps_y = sampleNormal(0., vel.norm(), k2_, w_t);
-  float eps_theta = sampleNormal(k3_, vel.norm(), k4_, w_t);
+  Eigen::Vector2f c_vel;        // car velocity in car (base) frame
+  Eigen::Vector2f c_eps_vel;    // car velocity error in car (base) frame
 
-  x_t_plus_1.translation.x() = xt + vel.x() * delta_t_ + eps_x;
-  x_t_plus_1.translation.y() = yt + vel.y() * delta_t_ + eps_y;
+  c_vel.x() = v_t * std::cos(steering_angle);
+  c_vel.y() = v_t * std::sin(steering_angle);
+  c_eps_vel.x() = sampleNormal(k1_, c_vel.norm(), 0., w_t);
+  c_eps_vel.y() = sampleNormal(0., c_vel.norm(), k2_, w_t);
+  float eps_theta = sampleNormal(k3_, c_vel.norm(), k4_, w_t);
+
+  // Rotation matrix from world to car (base) frame, different for e/particle
+  Eigen::Matrix2f w_R_car;
+  w_R_car << std::cos(thetat), -std::sin(thetat),
+          std::sin(thetat), std::cos(thetat);
+
+  // Convert car velocity error to world frame
+  Eigen::Vector2f w_eps_vel = w_R_car * c_eps_vel;
+  // Convert car velocity to world frame
+  Eigen::Vector2f w_vel = w_R_car * c_vel;
+
+  x_t_plus_1.translation.x() = xt + w_vel.x() * delta_t_ + w_eps_vel.x();
+  x_t_plus_1.translation.y() = yt + w_vel.y() * delta_t_ + w_eps_vel.y();
   x_t_plus_1.angle = thetat + w_t * delta_t_ + eps_theta;
 
   return x_t_plus_1;
