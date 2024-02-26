@@ -46,7 +46,8 @@ using Eigen::Vector2f;
 using Eigen::Vector2i;
 using vector_map::VectorMap;
 
-DEFINE_double(num_particles, 50, "Number of particles");
+static double n_particles = 50;
+DEFINE_double(num_particles, n_particles, "Number of particles");
 
 namespace particle_filter {
 
@@ -55,9 +56,18 @@ config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
-    odom_initialized_(false) {}
+    odom_initialized_(false),
+    motion_model_(0.324, 0., 0.05, n_particles),
+    particles_(n_particles) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
+  // TODO clean-up?
+  unsigned int i = 0;
+  for (auto const& p : motion_model_->getParticles(particles)) {
+    particles_[i].loc = p.translation;
+    particles_[i].angle = p.angle;
+    i++;
+  }
   *particles = particles_;
 }
 
@@ -186,14 +196,16 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-
+  Vector2f delta_loc = odom_loc - prev_odom_loc_;
+  float delta_angle = odom_angle - prev_odom_angle_;
+  motion_model_->predictParticles(delta_loc, delta_angle);
 
   // You will need to use the Gaussian random number generator provided. For
   // example, to generate a random number from a Gaussian with mean 0, and
   // standard deviation 2:
-  float x = rng_.Gaussian(0.0, 2.0);
-  printf("Random number drawn from Gaussian distribution with 0 mean and "
-         "standard deviation of 2 : %f\n", x);
+//  float x = rng_.Gaussian(0.0, 2.0);
+//  printf("Random number drawn from Gaussian distribution with 0 mean and "
+//         "standard deviation of 2 : %f\n", x);
 }
 
 void ParticleFilter::Initialize(const string& map_file,
@@ -203,6 +215,7 @@ void ParticleFilter::Initialize(const string& map_file,
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   map_.Load(map_file);
+  motion_model_->initialize(loc, angle);
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 

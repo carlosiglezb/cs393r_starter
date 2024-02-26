@@ -19,17 +19,20 @@ MotionModelSampler::MotionModelSampler(float wheel_base,
   n_samples_ = n_samples;
 
   // tuning parameters
-  k1_ = 1e-6;
-  k2_ = 1e-4;
-  k3_ = 1e-8;
-  k4_ = 1e-8;
+  k1_ = 1e-4;
+  k2_ = 1e-2;
+  k3_ = 1e-6;
+  k4_ = 1e-6;
 }
 
 MotionModelSampler::~MotionModelSampler() = default;
 
-void MotionModelSampler::initialize(const Pose2Df &curent_pose) {
+void MotionModelSampler::initialize(const Eigen::Vector2f &loc,
+                                    const float angle) {
+  // TODO add randomness around loc and angle
   for (auto & sample : particles_) {
-    sample = curent_pose;
+    sample.translation = loc;
+    sample.angle = angle;
   }
 }
 
@@ -37,6 +40,45 @@ void MotionModelSampler::predictParticles(const Eigen::Vector2f &current_control
   for (auto & sample : particles_) {
     sample = sampleNextState(sample, current_control);
   }
+}
+
+void MotionModelSampler::predictParticles(const Eigen::Vector2f &delta_loc,
+                                          const float delta_angle) {
+  for (auto & sample : particles_) {
+    // Compute the estimated change in pose for each particle
+    // note: the orientation of each particle may be different
+    Pose2Df error_pose = sampleNextErrorState(sample, delta_loc, delta_angle);
+
+    // Update the (estimated) particle's pose
+    sample.translation += error_pose.translation;
+    sample.angle += error_pose.angle;
+  }
+}
+
+Pose2Df MotionModelSampler::sampleNextErrorState(const Pose2Df &x_t,
+                                                 const Eigen::Vector2f &delta_loc,
+                                                 const float delta_angle) {
+  Pose2Df delta_pose;
+  // simple change of variables for better bookkeeping
+  float thetat = x_t.angle;
+
+  // noise/uncertainty parameters
+  Eigen::Vector2f car_eps_loc;    // car translation error in car frame
+
+  car_eps_loc.x() = sampleNormal(k1_, delta_loc.norm(), 0., delta_angle);
+  car_eps_loc.y() = sampleNormal(k2_, delta_loc.norm(), 0., delta_angle);
+  float eps_theta = sampleNormal(k3_, delta_loc.norm(), k4_, delta_angle);
+
+  // Rotation matrix from odom to car (base) frame, different for e/particle
+  Eigen::Matrix2f odom_R_car;
+  odom_R_car << std::cos(thetat), -std::sin(thetat),
+          std::sin(thetat), std::cos(thetat);
+
+  // Convert car translation error to odom frame and add to pose error
+  delta_pose.translation = delta_loc + odom_R_car * car_eps_loc;
+  delta_pose.angle = delta_angle + eps_theta;
+
+  return delta_pose;
 }
 
 Pose2Df MotionModelSampler::sampleNextState(const Pose2Df &x_t,

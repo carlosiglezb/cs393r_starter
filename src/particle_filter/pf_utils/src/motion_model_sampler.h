@@ -23,7 +23,7 @@ public:
      * Initialize all particles in the particle filter with the current pose.
      * @param curent_pose
      */
-    void initialize(const Pose2Df &curent_pose);
+    void initialize(const Eigen::Vector2f &loc, const float angle);
 
     /**
      * Predict the next state of all particles by applying to each the current_control.
@@ -31,6 +31,7 @@ public:
      * angular velocities (v, w)
      */
     void predictParticles(const Eigen::Vector2f &current_control);
+    void predictParticles(const Eigen::Vector2f &delta_location, const float delta_angle);
 
     /**
      * Samples a new pose for each particle using a translation/rotation error model with
@@ -42,6 +43,19 @@ public:
      */
     Pose2Df sampleNextState(const Pose2Df &x_t,
                             const Eigen::Vector2f &u_t_plus_1);
+
+    /**
+     * Samples a new pose for each particle using a translation/rotation error model with
+     * errors drawn from a zero mean, normal distribution with variance parameterized by
+     * the linear and angular velocity magnitudes.
+     * @param x_t Particle's pose
+     * @param delta_location Change in (x,y) position in previous local coordinates
+     * @param delta_angle Change in steering angle in previous local coordiantes
+     * @return
+     */
+    Pose2Df sampleNextErrorState(const Pose2Df &x_t,
+                                 const Eigen::Vector2f &delta_location,
+                                 const float delta_angle);
 
     /**
      * Update the curvature (control) used of the motion prediction model.
