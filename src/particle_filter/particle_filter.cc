@@ -163,22 +163,39 @@ void ParticleFilter::Update(const vector<float>& ranges,
   }
 }
 
+std::vector<Particle> resampleParticles(const std::vector<Particle>& particles) {
+  double totalWeight = std::accumulate(particles.begin(), particles.end(), 0.0,
+                                       [](double sum, const Particle& p) { return sum + p.weight; });
+
+  std::vector<Particle> resampledParticles;
+  std::default_random_engine generator;
+  std::uniform_real_distribution<double> distribution(0.0, totalWeight);
+
+  for (size_t i = 0; i < particles.size(); ++i) {
+    double x = distribution(generator);
+    double wSum = 0;
+    for (const auto& particle : particles) {
+      wSum += particle.weight;
+      if (wSum > x) {
+        resampledParticles.push_back(particle);
+        break;
+      }
+    }
+  }
+
+  return resampledParticles;
+}
+
 void ParticleFilter::Resample() {
   // Resample the particles, proportional to their weights.
-  // The current particles are in the `particles_` variable. 
-  // Create a variable to store the new particles, and when done, replace the
-  // old set of particles:
-  // vector<Particle> new_particles';
-  // During resampling: 
-  //    new_particles.push_back(...)
-  // After resampling:
-  // particles_ = new_particles;
+  vector<Particle> new_particles = resampleParticles(particles_);
+  particles_ = new_particles;
 
   // You will need to use the uniform random number generator provided. For
   // example, to generate a random number between 0 and 1:
-  float x = rng_.UniformRandom(0, 1);
-  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
-         x);
+//  float x = rng_.UniformRandom(0, 1);
+//  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
+//         x);
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,

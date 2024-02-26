@@ -78,7 +78,15 @@ class ParticleFilter {
               float angle_max,
               Particle* p);
 
-  // Resample particles.
+    /**
+   * Resamples particles based on their weights.
+   *
+   * @param particles The vector of particles to be resampled.
+   * @return The resampled vector of particles.
+   */
+    std::vector<Particle> resampleParticles(const std::vector<Particle>& particles);
+
+    // Resample particles.
   void Resample();
 
   // For debugging: get predicted point cloud from current location.
