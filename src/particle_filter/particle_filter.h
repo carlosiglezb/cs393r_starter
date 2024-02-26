@@ -25,11 +25,15 @@
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "shared/math/line2d.h"
-#include "shared/util/random.h"
+#include "../shared/util/random.h"
 #include "vector_map/vector_map.h"
+#include "pf_utils/motion_model_sampler.h"
+#include <memory>
 
 #ifndef SRC_PARTICLE_FILTER_H_
 #define SRC_PARTICLE_FILTER_H_
+
+using namespace pf_utils;
 
 namespace particle_filter {
 
@@ -88,6 +92,8 @@ class ParticleFilter {
                               std::vector<Eigen::Vector2f>* scan);
 
  private:
+  // Motion model
+  std::shared_ptr<MotionModelSampler> motion_model_;
 
   // List of particles being tracked.
   std::vector<Particle> particles_;
