@@ -27,13 +27,11 @@
 #include "shared/math/line2d.h"
 #include "../shared/util/random.h"
 #include "vector_map/vector_map.h"
-#include "pf_utils/motion_model_sampler.h"
+#include "motion_model_sampler.h"
 #include <memory>
 
 #ifndef SRC_PARTICLE_FILTER_H_
 #define SRC_PARTICLE_FILTER_H_
-
-using namespace pf_utils;
 
 namespace particle_filter {
 
@@ -103,9 +101,6 @@ class ParticleFilter {
   // Motion model
   std::shared_ptr<MotionModelSampler> motion_model_;
 
-  // List of particles being tracked.
-  std::vector<Particle> particles_;
-
   // Map of the environment.
   vector_map::VectorMap map_;
 
@@ -116,6 +111,9 @@ class ParticleFilter {
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+
+  // List of particles being tracked.
+  std::vector<Particle> particles_;
 };
 }  // namespace slam
 

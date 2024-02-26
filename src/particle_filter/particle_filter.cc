@@ -57,17 +57,18 @@ ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    motion_model_(0.324, 0., 0.05, n_particles),
-    particles_(n_particles) {}
+    particles_(n_particles) {
+        motion_model_ = std::make_shared<MotionModelSampler>(0.324, 0., 0.05, n_particles);
+}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   // TODO clean-up?
-  unsigned int i = 0;
-  for (auto const& p : motion_model_->getParticles(particles)) {
-    particles_[i].loc = p.translation;
-    particles_[i].angle = p.angle;
-    i++;
-  }
+  //unsigned int i = 0;
+  //for (auto const& p : motion_model_->getParticles()) {
+  //  particles_[i].loc = p.translation;
+  //  particles_[i].angle = p.angle;
+  //  i++;
+  //}
   *particles = particles_;
 }
 

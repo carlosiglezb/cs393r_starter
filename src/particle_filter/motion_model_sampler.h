@@ -5,11 +5,10 @@
 #ifndef NAV_UTILS_MOTION_MODEL_HPP
 #define NAV_UTILS_MOTION_MODEL_HPP
 
-#include "../../../shared/math/poses_2d.h"
+#include "../shared/math/poses_2d.h"
 #include <random>
 
 using namespace pose_2d;
-namespace pf_utils {
 
 class MotionModelSampler {
 public:
@@ -107,7 +106,5 @@ private:
     // set of particles
     std::vector<Pose2Df> particles_;
 };
-
-} // fp_utils
 
 #endif //NAV_UTILS_MOTION_MODEL_HPP

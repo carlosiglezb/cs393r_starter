@@ -6,8 +6,6 @@
 
 using namespace pose_2d;
 
-namespace pf_utils {
-
 MotionModelSampler::MotionModelSampler(float wheel_base,
                                        float curvature,
                                        float delta_t,
@@ -178,5 +176,3 @@ float MotionModelSampler::sampleNormal(const float k1,
 std::vector<Pose2Df> MotionModelSampler::getParticles() {
   return particles_;
 }
-
-} // pf_utils
