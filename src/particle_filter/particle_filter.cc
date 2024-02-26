@@ -85,30 +85,28 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 
   // The line segments in the map are stored in the `map_.lines` variable. You
   // can iterate through them as:
+  const Vector2f laser_loc(loc[0] + 0.2 * cos(angle), loc[1] + 0.2 * sin(angle));
   for (size_t i = 0; i < map_.lines.size(); ++i) {
     const line2f map_line = map_.lines[i];
-    // The line2f class has helper functions that will be useful.
-    // You can create a new line segment instance as follows, for :
-    line2f my_line(1, 2, 3, 4); // Line segment from (1,2) to (3.4).
-    // Access the end points using `.p0` and `.p1` members:
-    printf("P0: %f, %f P1: %f,%f\n", 
-           my_line.p0.x(),
-           my_line.p0.y(),
-           my_line.p1.x(),
-           my_line.p1.y());
-
-    // Check for intersections:
-    bool intersects = map_line.Intersects(my_line);
-    // You can also simultaneously check for intersection, and return the point
-    // of intersection:
-    Vector2f intersection_point; // Return variable
-    intersects = map_line.Intersection(my_line, &intersection_point);
-    if (intersects) {
-      printf("Intersects at %f,%f\n", 
-             intersection_point.x(),
-             intersection_point.y());
-    } else {
-      printf("No intersection\n");
+    const float angle_increment = (angle_max - angle_min) / num_ranges;
+    float laser_angle = angle_min;
+    for (int i = 0; i < num_ranges; i++) {
+      float laser_x = cos(laser_angle + angle);
+      float laser_y = sin(laser_angle + angle);
+      line2f laser_line(
+        laser_loc[0] + range_min * laser_x,
+        laser_loc[1] + range_min * laser_y,
+        laser_loc[0] + range_max * laser_x,
+        laser_loc[1] + range_max * laser_y);
+      bool intersects = map_line.Intersects(laser_line);
+      Vector2f intersection_point;
+      intersects = map_line.Intersection(laser_line, &intersection_point);
+      if (intersects) {
+        scan[i] = intersection_point;
+      } else {
+        scan[i] = Vector2f(laser_line.p1.x(), laser_line.p1.y());
+      }
+      laser_angle += angle_increment;
     }
   }
 }
@@ -124,6 +122,35 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // observations for each particle, and assign weights to the particles based
   // on the observation likelihood computed by relating the observation to the
   // predicted point cloud.
+  int num_ranges = ranges.size();
+  float gamma = 1.0;
+  float sigma = 1.0;
+  for (auto &particle: particles_) {
+    vector<Vector2f> predicted_scan;
+    GetPredictedPointCloud(
+      particle.loc,
+      particle.angle,
+      num_ranges,
+      range_min,
+      range_max,
+      angle_min,
+      angle_max,
+      &predicted_scan);
+    const Vector2f laser_loc(particle.loc[0] + 0.2 * cos(particle.angle), particle.loc[1] + 0.2 * sin(particle.angle));
+    vector<float> likelihoods(num_ranges);
+    for (int i = 0; i < num_ranges; i++) {
+      float observed_range = ranges[i];
+      Vector2f predicted_point = predicted_scan[i];
+      float predicted_range = sqrt(pow(laser_loc[0] - predicted_point[0], 2) + pow(laser_loc[1] - predicted_point[1], 2));
+      likelihoods[i] = pow((observed_range - predicted_range) / sigma, 2);
+    }
+
+    float log_likelihood = 0.0;
+    for (float likelihood: likelihoods) {
+      log_likelihood += likelihood;
+    }
+    particle.weight = -gamma * log_likelihood;
+  }
 }
 
 void ParticleFilter::Resample() {
