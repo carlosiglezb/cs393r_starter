@@ -19,7 +19,7 @@ TEST(MotionModelTest, sampleNextStatesFromOrigin) {
   float ang_vel = lin_vel * curvature;
   Pose2Df current_state(0., 0., 0.);
   Eigen::Vector2f u_t_plus_1(lin_vel, ang_vel);   // v, w
-  motionSampler.initialize(current_state);
+  motionSampler.initialize(current_state.translation, current_state.angle);
 
   // variables to plot
   std::vector<float> origin_x, origin_y;
@@ -70,7 +70,7 @@ TEST(MotionModelTest, predictSamplesFromOrigin) {
   float ang_vel = lin_vel * curvature;
   Pose2Df current_state(0., 0., 0.);
   Eigen::Vector2f u_t_plus_1(lin_vel, ang_vel);   // v, w
-  motionSampler.initialize(current_state);
+  motionSampler.initialize(current_state.translation, current_state.angle);
 
   // variables to plot
   std::vector<float> origin_x, origin_y;
@@ -132,7 +132,7 @@ TEST(MotionModelTest, predictSamplesMovingUp) {
   float ang_vel = lin_vel * curvature;
   Pose2Df current_state(M_PI_2, 0., 0.);
   Eigen::Vector2f u_t_plus_1(lin_vel, ang_vel);   // v, w
-  motionSampler.initialize(current_state);
+  motionSampler.initialize(current_state.translation, current_state.angle);
 
   // variables to plot
   std::vector<float> origin_x, origin_y;
@@ -181,6 +181,143 @@ TEST(MotionModelTest, predictSamplesMovingUp) {
 
   ASSERT_TRUE(true);
 }
+
+TEST(MotionModelTest, predictErrorSamplesFromOrigin) {
+  // initialize
+  unsigned int n_samples = 500;
+  float dt = 0.05;
+  float curvature = -0.8;
+  MotionModelSampler motionSampler(0.324, curvature, dt, n_samples);
+
+  // inputs
+  float lin_vel = 1.;
+  float ang_vel = lin_vel * curvature;
+  Pose2Df prev_pose(0., 0., 0.);
+  Eigen::Vector2f u_t_plus_1(lin_vel, ang_vel);   // v, w
+  motionSampler.initialize(prev_pose.translation, prev_pose.angle);
+
+  // variables to plot
+  std::vector<float> origin_x, origin_y;
+  std::vector<float> x_traj, y_traj;
+
+  Eigen::Vector2f odom_loc(0., 0.);
+  float odom_angle = 0.;
+  // assume motion in "V" shape
+  for (unsigned int t = 0; t < 4; t++) {
+    // update odom position
+    odom_loc.x() += 0.05;
+    if (t < 2) {
+      odom_loc.y() -= 0.02;
+    } else {
+      odom_loc.y() += 0.02;
+    }
+    Eigen::Vector2f delta_loc = odom_loc - prev_pose.translation;
+    float delta_angle = odom_angle - prev_pose.angle;
+
+    // predict next particles
+    motionSampler.predictParticles(delta_loc, delta_angle);
+    for (auto & sample : motionSampler.getParticles()) {
+      x_traj.push_back(sample.translation.x());
+      y_traj.push_back(sample.translation.y());
+      origin_x.push_back(0.);
+      origin_y.push_back(0.);
+    }
+    prev_pose.translation = odom_loc;
+    prev_pose.angle = odom_angle;
+  }
+
+  // plot
+  Plot2D plot_xy_pos;
+  plot_xy_pos.xlabel("x");
+  plot_xy_pos.ylabel("y");
+  plot_xy_pos.drawDots(origin_x, origin_y).label("x_{0}").lineColor("red");
+  plot_xy_pos.drawDots(x_traj, y_traj).label("x_{t+1}").lineColor("green");
+  plot_xy_pos.legend().atTopRight();
+  plot_xy_pos.xrange(-0.1, 0.3);
+  plot_xy_pos.yrange(-0.1, 0.1);
+  plot_xy_pos.grid();
+
+  // Create figure to hold
+  Figure fig = {{plot_xy_pos}};
+
+  // Create canvas to hold figure
+  Canvas canvas = {{fig}};
+  canvas.size(750, 750);
+
+  // Show the plot_tau_cmd in a pop-up window
+  canvas.show();
+
+  ASSERT_TRUE(true);
+}
+
+TEST(MotionModelTest, predictErrorSamplesMovingUp) {
+  // initialize
+  unsigned int n_samples = 500;
+  float dt = 0.05;
+  float curvature = -0.8;
+  MotionModelSampler motionSampler(0.324, curvature, dt, n_samples);
+
+  // inputs
+  float lin_vel = 1.;
+  float ang_vel = lin_vel * curvature;
+  Pose2Df prev_pose(M_PI_2, 0., 0.);
+  Eigen::Vector2f u_t_plus_1(lin_vel, ang_vel);   // v, w
+  motionSampler.initialize(prev_pose.translation, prev_pose.angle);
+
+  // variables to plot
+  std::vector<float> origin_x, origin_y;
+  std::vector<float> x_traj, y_traj;
+
+  Eigen::Vector2f odom_loc(0., 0.);
+  float odom_angle = M_PI_2;
+  // assume motion in ">" shape
+  for (unsigned int t = 0; t < 4; t++) {
+    // update odom position
+    odom_loc.y() += 0.05;
+    if (t < 2) {
+      odom_loc.x() += 0.02;
+    } else {
+      odom_loc.x() -= 0.02;
+    }
+    Eigen::Vector2f delta_loc = odom_loc - prev_pose.translation;
+    float delta_angle = odom_angle - prev_pose.angle;
+
+    // predict next particles
+    motionSampler.predictParticles(delta_loc, delta_angle);
+    for (auto & sample : motionSampler.getParticles()) {
+      x_traj.push_back(sample.translation.x());
+      y_traj.push_back(sample.translation.y());
+      origin_x.push_back(0.);
+      origin_y.push_back(0.);
+    }
+    prev_pose.translation = odom_loc;
+    prev_pose.angle = odom_angle;
+  }
+
+  // plot
+  Plot2D plot_xy_pos;
+  plot_xy_pos.xlabel("x");
+  plot_xy_pos.ylabel("y");
+  plot_xy_pos.drawDots(origin_x, origin_y).label("x_{0}").lineColor("red");
+  plot_xy_pos.drawDots(x_traj, y_traj).label("x_{t+1}").lineColor("green");
+  plot_xy_pos.legend().atTopRight();
+  plot_xy_pos.xrange(-0.1, 0.1);
+  plot_xy_pos.yrange(-0.02, 0.3);
+  plot_xy_pos.grid();
+
+  // Create figure to hold
+  Figure fig = {{plot_xy_pos}};
+
+  // Create canvas to hold figure
+  Canvas canvas = {{fig}};
+  canvas.size(750, 750);
+
+  // Show the plot_tau_cmd in a pop-up window
+  canvas.show();
+
+  ASSERT_TRUE(true);
+}
+
 
 } // namespaceP
 
