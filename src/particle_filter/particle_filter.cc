@@ -164,7 +164,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
   }
 }
 
-std::vector<Particle> resampleParticles(const std::vector<Particle>& particles) {
+std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Particle>& particles) {
   double totalWeight = std::accumulate(particles.begin(), particles.end(), 0.0,
                                        [](double sum, const Particle& p) { return sum + p.weight; });
 
