@@ -36,6 +36,8 @@
 
 #include "vector_map/vector_map.h"
 
+#define b_DEBUG true
+
 using geometry::line2f;
 using std::cout;
 using std::endl;
@@ -169,6 +171,16 @@ void ParticleFilter::Update(const vector<float>& ranges,
     }
     particle.weight = -gamma * log_likelihood;
   }
+
+  // [DEBUG]
+  if (b_DEBUG) {
+    Vector2f loc_sum(0., 0.);
+    for (const auto &p: particles_) {
+      loc_sum += p.loc;
+    }
+    loc_sum /= particles_.size();
+    std::cout << "[Update] Location: (" << loc_sum.transpose() << ")" << std::endl;
+  }
 }
 
 std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Particle>& particles) {
@@ -225,6 +237,16 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   float delta_angle = odom_angle - prev_odom_angle_;
   motion_model_->predictParticles(delta_loc, delta_angle);
 
+  // [DEBUG]
+  if (b_DEBUG) {
+    Vector2f loc_sum(0., 0.);
+    for (const auto &p: motion_model_->getParticles()) {
+      loc_sum += p.translation;
+    }
+    loc_sum /= motion_model_->getParticles().size();
+    std::cout << "[Predict] Location: (" << loc_sum.transpose() << ")" << std::endl;
+  }
+
   // You will need to use the Gaussian random number generator provided. For
   // example, to generate a random number from a Gaussian with mean 0, and
   // standard deviation 2:
@@ -250,13 +272,29 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // Compute the best estimate of the robot's location based on the current set
   // of particles. The computed values must be set to the `loc` and `angle`
   // variables to return them. Modify the following assignments:
-  loc = Vector2f(0, 0);
-  angle = 0;
 
   if (!odom_initialized_) {
     loc(0., 0.);
     angle = 0.;
   }
+
+  // compute average location and mean angle using atan2
+  Vector2f loc_sum(0., 0.);
+  float sin_theta_sum = 0.;
+  float cos_theta_sum = 0.;
+  for (size_t i = 0; i < particles_.size(); ++i) {
+    loc_sum += particles_[i].loc;
+    sin_theta_sum += std::sin(particles_[i].angle);
+    cos_theta_sum += std::cos(particles_[i].angle);
+  }
+  loc = loc_sum / particles_.size();
+  angle = std::atan2(sin_theta_sum / particles_.size(),
+                     cos_theta_sum / particles_.size());
+  if (b_DEBUG) {
+    std::cout << "Location: (" << loc.transpose() << ")" << std::endl;
+    std::cout << "Angle: (" << angle << ")" << std::endl;
+  }
+
 }
 
 
