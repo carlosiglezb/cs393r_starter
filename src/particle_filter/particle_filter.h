@@ -129,6 +129,10 @@ private:
   float k2_;    // rotational error from translational movement
   float k3_;    // translational error from translational movement
   float k4_;    // rotational error from rotational movement
+
+  int laser_interval_;
+  float gamma_;
+  float sigma_;
 };
 }  // namespace slam
 

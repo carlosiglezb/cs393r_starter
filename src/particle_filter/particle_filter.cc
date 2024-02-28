@@ -73,6 +73,10 @@ ParticleFilter::ParticleFilter() :
   k2_ = 1e-3;
   k3_ = 1e-4;
   k4_ = 1e-4;
+
+  laser_interval_ = 1;
+  gamma_ = 1.0;
+  sigma_ = 1.0;
 }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
@@ -108,7 +112,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     const line2f map_line = map_.lines[i];
     const float angle_increment = (angle_max - angle_min) / num_ranges;
     float laser_angle = angle_min;
-    for (int i = 0; i < num_ranges; i++) {
+    for (int i = 0; i < num_ranges; i+=laser_interval_) {
       float laser_x = cos(laser_angle + angle);
       float laser_y = sin(laser_angle + angle);
       line2f laser_line(
@@ -124,7 +128,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
       } else {
         scan[i] = Vector2f(laser_line.p1.x(), laser_line.p1.y());
       }
-      laser_angle += angle_increment;
+      laser_angle += angle_increment * laser_interval_;
     }
   }
 }
@@ -142,8 +146,6 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // predicted point cloud.
   Particle& particle = *p_ptr;
   int num_ranges = ranges.size();
-  float gamma = 1.0;
-  float sigma = 1.0;
 
   vector<Vector2f> predicted_scan;
   GetPredictedPointCloud(
@@ -157,18 +159,18 @@ void ParticleFilter::Update(const vector<float>& ranges,
           &predicted_scan);
   const Vector2f laser_loc(particle.loc[0] + 0.2 * cos(particle.angle), particle.loc[1] + 0.2 * sin(particle.angle));
   vector<float> likelihoods(num_ranges);
-  for (int i = 0; i < num_ranges; i++) {
+  for (int i = 0; i < num_ranges; i+= laser_interval_) {
     float observed_range = ranges[i];
     Vector2f predicted_point = predicted_scan[i];
     float predicted_range = sqrt(pow(laser_loc[0] - predicted_point[0], 2) + pow(laser_loc[1] - predicted_point[1], 2));
-    likelihoods[i] = pow((observed_range - predicted_range) / sigma, 2);
+    likelihoods[i] = pow((observed_range - predicted_range) / sigma_, 2);
   }
 
   float log_likelihood = 0.0;
   for (float likelihood: likelihoods) {
     log_likelihood += likelihood;
   }
-  particle.weight = -gamma * log_likelihood;
+  particle.weight = -gamma_ * log_likelihood;
 }
 
 std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Particle>& particles) {
