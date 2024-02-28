@@ -225,6 +225,14 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
+
+  // [CG] I think here we are supposed to loop over every particle
+  // and pass each pointer to the Update function, but I'm not 100% sure
+//  Particle& particle_ptr;
+//  Update(ranges, range_min, range_max, angle_min, angle_max, particle_ptr);
+
+  // [CG] After looping over all particles, I think we call Resample
+  Resample();
 }
 
 void ParticleFilter::Predict(const Vector2f& odom_loc,
