@@ -72,12 +72,12 @@ ParticleFilter::ParticleFilter() :
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   // TODO clean-up?
-  //unsigned int i = 0;
-  //for (auto const& p : motion_model_->getParticles()) {
-  //  particles_[i].loc = p.translation;
-  //  particles_[i].angle = p.angle;
-  //  i++;
-  //}
+  for (const auto& p : motion_model_->getParticles()) {
+    Particle particle;
+    particle.loc = p.translation;
+    particle.angle = p.angle;
+    particles->push_back(particle);
+  }
   *particles = particles_;
 }
 
