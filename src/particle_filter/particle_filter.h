@@ -27,11 +27,13 @@
 #include "shared/math/line2d.h"
 #include "../shared/util/random.h"
 #include "vector_map/vector_map.h"
-#include "motion_model_sampler.h"
+#include "../shared/math/poses_2d.h"
 #include <memory>
 
 #ifndef SRC_PARTICLE_FILTER_H_
 #define SRC_PARTICLE_FILTER_H_
+
+using namespace pose_2d;
 
 namespace particle_filter {
 
@@ -52,6 +54,11 @@ class ParticleFilter {
                     float range_max,
                     float angle_min,
                     float angle_max);
+
+  // Method to sample next state given odometry errors
+  Pose2Df sampleNextErrorState(const float thetat,
+                               const Eigen::Vector2f &delta_loc,
+                               const float delta_angle);
 
   // Predict particle motion based on odometry.
   void Predict(const Eigen::Vector2f& odom_loc,
@@ -97,9 +104,15 @@ class ParticleFilter {
                               float angle_max,
                               std::vector<Eigen::Vector2f>* scan);
 
- private:
+private:
+  float sampleNormal(const float k1,
+                     const float vel,
+                     const float k2,
+                     const float omega);
+
+private:
   // Motion model
-  std::shared_ptr<MotionModelSampler> motion_model_;
+//  std::shared_ptr<MotionModelSampler> motion_model_;
 
   // Map of the environment.
   vector_map::VectorMap map_;
@@ -114,6 +127,11 @@ class ParticleFilter {
 
   // List of particles being tracked.
   std::vector<Particle> particles_;
+  // Model (tuning) uncertainty parameters
+  float k1_;    // translational (x) error from translational movement
+  float k2_;    // rotational error from translational movement
+  float k3_;    // translational error from translational movement
+  float k4_;    // rotational error from rotational movement
 };
 }  // namespace slam
 

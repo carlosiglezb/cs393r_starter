@@ -36,7 +36,7 @@
 
 #include "vector_map/vector_map.h"
 
-#define b_DEBUG true
+#define b_DEBUG false
 
 using geometry::line2f;
 using std::cout;
@@ -60,7 +60,6 @@ ParticleFilter::ParticleFilter() :
     prev_odom_angle_(0),
     odom_initialized_(false),
     particles_(n_particles) {
-        motion_model_ = std::make_shared<MotionModelSampler>(0.324, 0., 0.05, n_particles);
 
   // Initialize to zero
   for (auto & sample : particles_) {
@@ -68,16 +67,15 @@ ParticleFilter::ParticleFilter() :
     sample.angle = 0.;
     sample.weight = 0.;
   }
+
+  // tuning parameters of motion model
+  k1_ = 1e-3;
+  k2_ = 1e-3;
+  k3_ = 1e-4;
+  k4_ = 1e-4;
 }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
-  // TODO clean-up?
-  for (const auto& p : motion_model_->getParticles()) {
-    Particle particle;
-    particle.loc = p.translation;
-    particle.angle = p.angle;
-    particles->push_back(particle);
-  }
   *particles = particles_;
 }
 
@@ -142,45 +140,35 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // observations for each particle, and assign weights to the particles based
   // on the observation likelihood computed by relating the observation to the
   // predicted point cloud.
+  Particle& particle = *p_ptr;
   int num_ranges = ranges.size();
   float gamma = 1.0;
   float sigma = 1.0;
-  for (auto &particle: particles_) {
-    vector<Vector2f> predicted_scan;
-    GetPredictedPointCloud(
-      particle.loc,
-      particle.angle,
-      num_ranges,
-      range_min,
-      range_max,
-      angle_min,
-      angle_max,
-      &predicted_scan);
-    const Vector2f laser_loc(particle.loc[0] + 0.2 * cos(particle.angle), particle.loc[1] + 0.2 * sin(particle.angle));
-    vector<float> likelihoods(num_ranges);
-    for (int i = 0; i < num_ranges; i++) {
-      float observed_range = ranges[i];
-      Vector2f predicted_point = predicted_scan[i];
-      float predicted_range = sqrt(pow(laser_loc[0] - predicted_point[0], 2) + pow(laser_loc[1] - predicted_point[1], 2));
-      likelihoods[i] = pow((observed_range - predicted_range) / sigma, 2);
-    }
 
-    float log_likelihood = 0.0;
-    for (float likelihood: likelihoods) {
-      log_likelihood += likelihood;
-    }
-    particle.weight = -gamma * log_likelihood;
+  vector<Vector2f> predicted_scan;
+  GetPredictedPointCloud(
+          particle.loc,
+          particle.angle,
+          num_ranges,
+          range_min,
+          range_max,
+          angle_min,
+          angle_max,
+          &predicted_scan);
+  const Vector2f laser_loc(particle.loc[0] + 0.2 * cos(particle.angle), particle.loc[1] + 0.2 * sin(particle.angle));
+  vector<float> likelihoods(num_ranges);
+  for (int i = 0; i < num_ranges; i++) {
+    float observed_range = ranges[i];
+    Vector2f predicted_point = predicted_scan[i];
+    float predicted_range = sqrt(pow(laser_loc[0] - predicted_point[0], 2) + pow(laser_loc[1] - predicted_point[1], 2));
+    likelihoods[i] = pow((observed_range - predicted_range) / sigma, 2);
   }
 
-  // [DEBUG]
-  if (b_DEBUG) {
-    Vector2f loc_sum(0., 0.);
-    for (const auto &p: particles_) {
-      loc_sum += p.loc;
-    }
-    loc_sum /= particles_.size();
-    std::cout << "[Update] Location: (" << loc_sum.transpose() << ")" << std::endl;
+  float log_likelihood = 0.0;
+  for (float likelihood: likelihoods) {
+    log_likelihood += likelihood;
   }
+  particle.weight = -gamma * log_likelihood;
 }
 
 std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Particle>& particles) {
@@ -213,9 +201,9 @@ void ParticleFilter::Resample() {
 
   // You will need to use the uniform random number generator provided. For
   // example, to generate a random number between 0 and 1:
-//  float x = rng_.UniformRandom(0, 1);
-//  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
-//         x);
+  //  float x = rng_.UniformRandom(0, 1);
+  //  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
+  //         x);
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
@@ -226,13 +214,55 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
 
-  // [CG] I think here we are supposed to loop over every particle
-  // and pass each pointer to the Update function, but I'm not 100% sure
-//  Particle& particle_ptr;
-//  Update(ranges, range_min, range_max, angle_min, angle_max, particle_ptr);
+  // loop over every particle and update its weight based on LiDAR observation
+  for (auto &particle: particles_) {
+    Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
+  }
 
-  // [CG] After looping over all particles, I think we call Resample
+  // [DEBUG]
+  if (b_DEBUG) {
+    Vector2f loc_sum(0., 0.);
+    for (const auto &p: particles_) {
+      loc_sum += p.loc;
+    }
+    loc_sum /= particles_.size();
+    std::cout << "[Update] Location: (" << loc_sum.transpose() << ")" << std::endl;
+  }
+
+  // Resample particles based on their importance weights
   Resample();
+}
+
+float ParticleFilter::sampleNormal(const float k1,
+                                   const float vel,
+                                   const float k2,
+                                   const float omega) {
+  float std_dev = std::sqrt(k1 * std::abs(vel) + k2 * std::abs(omega));
+  return rng_.Gaussian(0.0, std_dev);
+}
+
+Pose2Df ParticleFilter::sampleNextErrorState(const float thetat,
+                                             const Eigen::Vector2f &delta_loc,
+                                             const float delta_angle) {
+  Pose2Df delta_pose;
+
+  // noise/uncertainty parameters
+  Eigen::Vector2f car_eps_loc;    // car translation error in car frame
+
+  car_eps_loc.x() = sampleNormal(k1_, delta_loc.norm(), 0., delta_angle);
+  car_eps_loc.y() = sampleNormal(k2_, delta_loc.norm(), 0., delta_angle);
+  float eps_theta = sampleNormal(k3_, delta_loc.norm(), k4_, delta_angle);
+
+  // Rotation matrix from odom to car (base) frame, different for e/particle
+  Eigen::Matrix2f odom_R_car;
+  odom_R_car << std::cos(thetat), -std::sin(thetat),
+          std::sin(thetat), std::cos(thetat);
+
+  // Convert car translation error to odom frame and add to pose error
+  delta_pose.translation = delta_loc + odom_R_car * car_eps_loc;
+  delta_pose.angle = delta_angle + eps_theta;
+
+  return delta_pose;
 }
 
 void ParticleFilter::Predict(const Vector2f& odom_loc,
@@ -243,24 +273,33 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // forward based on odometry.
   Vector2f delta_loc = odom_loc - prev_odom_loc_;
   float delta_angle = odom_angle - prev_odom_angle_;
-  motion_model_->predictParticles(delta_loc, delta_angle);
+
+  for (auto & sample : particles_) {
+    // Compute the estimated change in pose for each particle
+    // note: the orientation of each particle may be different
+    Pose2Df error_pose = sampleNextErrorState(sample.angle, delta_loc, delta_angle);
+
+    // Update the (estimated) particle's pose
+    sample.loc += error_pose.translation;
+    sample.angle += error_pose.angle;
+  }
 
   // [DEBUG]
   if (b_DEBUG) {
     Vector2f loc_sum(0., 0.);
-    for (const auto &p: motion_model_->getParticles()) {
-      loc_sum += p.translation;
+    for (const auto &p: particles_) {
+      loc_sum += p.loc;
     }
-    loc_sum /= motion_model_->getParticles().size();
+    loc_sum /= particles_.size();
     std::cout << "[Predict] Location: (" << loc_sum.transpose() << ")" << std::endl;
   }
 
   // You will need to use the Gaussian random number generator provided. For
   // example, to generate a random number from a Gaussian with mean 0, and
   // standard deviation 2:
-//  float x = rng_.Gaussian(0.0, 2.0);
-//  printf("Random number drawn from Gaussian distribution with 0 mean and "
-//         "standard deviation of 2 : %f\n", x);
+  //  float x = rng_.Gaussian(0.0, 2.0);
+  //  printf("Random number drawn from Gaussian distribution with 0 mean and "
+  //         "standard deviation of 2 : %f\n", x);
 }
 
 void ParticleFilter::Initialize(const string& map_file,
@@ -270,7 +309,12 @@ void ParticleFilter::Initialize(const string& map_file,
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   map_.Load(map_file);
-  motion_model_->initialize(loc, angle);
+
+  // TODO add randomness around loc and angle
+  for (auto & sample : particles_) {
+    sample.loc = loc;
+    sample.angle = angle;
+  }
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 

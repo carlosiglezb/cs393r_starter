@@ -38,7 +38,6 @@ ADD_SUBDIRECTORY(src/shared)
 INCLUDE_DIRECTORIES(src/shared)
 INCLUDE_DIRECTORIES(src)
 ADD_SUBDIRECTORY(src/navigation/nav_utils)
-#ADD_SUBDIRECTORY(src/particle_filter/pf_utils)
 
 ROSBUILD_ADD_EXECUTABLE(slam
                         src/slam/slam_main.cc
@@ -48,8 +47,7 @@ TARGET_LINK_LIBRARIES(slam shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(particle_filter
                         src/particle_filter/particle_filter_main.cc
-                        src/particle_filter/particle_filter.cc
-                        src/particle_filter/motion_model_sampler.cc)
+                        src/particle_filter/particle_filter.cc)
 TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(navigation
