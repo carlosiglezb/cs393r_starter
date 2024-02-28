@@ -284,6 +284,10 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     sample.angle += error_pose.angle;
   }
 
+  // set current odometry reading as previous for next loop
+  prev_odom_loc_ = odom_loc;
+  prev_odom_angle_ = odom_angle;
+
   // [DEBUG]
   if (b_DEBUG) {
     Vector2f loc_sum(0., 0.);
@@ -310,11 +314,16 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
   map_.Load(map_file);
 
-  // TODO add randomness around loc and angle
+  // add uncertainty around initialized loc and angle
   for (auto & sample : particles_) {
-    sample.loc = loc;
-    sample.angle = angle;
+    sample.loc.x() = loc.x() + rng_.Gaussian(0, 0.01);  // allow 1 cm error
+    sample.loc.y() = loc.y() + rng_.Gaussian(0, 0.01);  // allow 1 cm error
+    sample.angle = angle + rng_.Gaussian(0, 0.1);       // allow 6 deg error
   }
+
+  // update previous odometry
+  prev_odom_loc_ = loc;
+  prev_odom_angle_ = angle;
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 

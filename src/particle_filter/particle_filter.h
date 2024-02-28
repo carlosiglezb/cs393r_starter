@@ -111,9 +111,6 @@ private:
                      const float omega);
 
 private:
-  // Motion model
-//  std::shared_ptr<MotionModelSampler> motion_model_;
-
   // Map of the environment.
   vector_map::VectorMap map_;
 
