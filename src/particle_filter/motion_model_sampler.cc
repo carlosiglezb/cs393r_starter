@@ -16,6 +16,11 @@ MotionModelSampler::MotionModelSampler(float wheel_base,
   delta_t_ = delta_t;
   n_samples_ = n_samples;
 
+  // Initialize to zero
+  for (auto & sample : particles_) {
+    sample.translation.setZero();
+  }
+
   // tuning parameters
   k1_ = 1e-4;
   k2_ = 1e-2;

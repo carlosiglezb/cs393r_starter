@@ -59,6 +59,13 @@ ParticleFilter::ParticleFilter() :
     odom_initialized_(false),
     particles_(n_particles) {
         motion_model_ = std::make_shared<MotionModelSampler>(0.324, 0., 0.05, n_particles);
+
+  // Initialize to zero
+  for (auto & sample : particles_) {
+    sample.loc.setZero();
+    sample.angle = 0.;
+    sample.weight = 0.;
+  }
 }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
@@ -245,6 +252,11 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // variables to return them. Modify the following assignments:
   loc = Vector2f(0, 0);
   angle = 0;
+
+  if (!odom_initialized_) {
+    loc(0., 0.);
+    angle = 0.;
+  }
 }
 
 
