@@ -36,7 +36,7 @@
 
 #include "vector_map/vector_map.h"
 
-#define b_DEBUG false
+#define b_DEBUG true
 
 using geometry::line2f;
 using std::cout;
@@ -69,10 +69,10 @@ ParticleFilter::ParticleFilter() :
   }
 
   // tuning parameters of motion model
-  k1_ = 1e-3;
-  k2_ = 1e-3;
-  k3_ = 1e-4;
-  k4_ = 1e-4;
+  k1_ = 3e-2;
+  k2_ = 1e-1;
+  k3_ = 1e-3;
+  k4_ = 1e-3;
 
   laser_interval_ = 1;
   gamma_ = 1.0;
@@ -145,6 +145,10 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // on the observation likelihood computed by relating the observation to the
   // predicted point cloud.
   Particle& particle = *p_ptr;
+
+  if (!odom_initialized_)
+    return;
+
   int num_ranges = ranges.size();
 
   vector<Vector2f> predicted_scan;
@@ -181,7 +185,7 @@ std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Partic
   std::default_random_engine generator;
   std::uniform_real_distribution<double> distribution(0.0, totalWeight);
 
-  for (size_t i = 0; i < particles.size(); ++i) {
+  for (size_t i = 0; i <= particles.size(); ++i) {
     double x = distribution(generator);
     double wSum = 0;
     for (const auto& particle : particles) {
@@ -197,6 +201,10 @@ std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Partic
 }
 
 void ParticleFilter::Resample() {
+  // TODO below check not needed?
+  if (!odom_initialized_)
+    return;
+
   // Resample the particles, proportional to their weights.
   vector<Particle> new_particles = resampleParticles(particles_);
   particles_ = new_particles;
@@ -215,11 +223,16 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
+  if (!odom_initialized_)
+    return;
 
   // loop over every particle and update its weight based on LiDAR observation
   for (auto &particle: particles_) {
     Update(ranges, range_min, range_max, angle_min, angle_max, &particle);
   }
+
+  // Resample particles based on their importance weights
+  Resample();
 
   // [DEBUG]
   if (b_DEBUG) {
@@ -230,9 +243,6 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
     loc_sum /= particles_.size();
     std::cout << "[Update] Location: (" << loc_sum.transpose() << ")" << std::endl;
   }
-
-  // Resample particles based on their importance weights
-  Resample();
 }
 
 float ParticleFilter::sampleNormal(const float k1,
@@ -273,17 +283,39 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-  Vector2f delta_loc = odom_loc - prev_odom_loc_;
-  float delta_angle = odom_angle - prev_odom_angle_;
+  if( !odom_initialized_ )
+  {
+    prev_odom_loc_ = odom_loc;
+    prev_odom_angle_ = odom_angle;
+    odom_initialized_ = true;
+    return;
+  }
 
+  // Get change in position in odom frame
+  Vector2f odom_delta_loc = odom_loc - prev_odom_loc_;
+  Eigen::Matrix2f base_R_odom;
+  base_R_odom << std::cos(-prev_odom_angle_), -std::sin(-prev_odom_angle_),
+          std::sin(-prev_odom_angle_), std::cos(-prev_odom_angle_);
+  Vector2f base_delta_pos = base_R_odom * odom_delta_loc;
+
+  // Get change in angle in odom frame
+  float base_delta_angle = odom_angle - prev_odom_angle_;
+
+  // Add uncertainty
   for (auto & sample : particles_) {
     // Compute the estimated change in pose for each particle
     // note: the orientation of each particle may be different
-    Pose2Df error_pose = sampleNextErrorState(sample.angle, delta_loc, delta_angle);
+    Vector2f delta_pos_err(0., 0.);
+    delta_pos_err.x() = sampleNormal(k1_, base_delta_pos.norm(), 0., base_delta_angle);
+    delta_pos_err.y() = sampleNormal(k2_, base_delta_pos.norm(), 0., base_delta_angle);
+    float delta_angle_err = sampleNormal(k3_, base_delta_pos.norm(), k4_, base_delta_angle);
 
     // Update the (estimated) particle's pose
-    sample.loc += error_pose.translation;
-    sample.angle += error_pose.angle;
+    Eigen::Matrix2f map_R_base;
+    map_R_base << std::cos(sample.angle), -std::sin(sample.angle),
+            std::sin(sample.angle), std::cos(sample.angle);
+    sample.loc += map_R_base * (base_delta_pos + delta_pos_err);
+    sample.angle += (base_delta_angle + delta_angle_err);
   }
 
   // set current odometry reading as previous for next loop
@@ -299,13 +331,6 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     loc_sum /= particles_.size();
     std::cout << "[Predict] Location: (" << loc_sum.transpose() << ")" << std::endl;
   }
-
-  // You will need to use the Gaussian random number generator provided. For
-  // example, to generate a random number from a Gaussian with mean 0, and
-  // standard deviation 2:
-  //  float x = rng_.Gaussian(0.0, 2.0);
-  //  printf("Random number drawn from Gaussian distribution with 0 mean and "
-  //         "standard deviation of 2 : %f\n", x);
 }
 
 void ParticleFilter::Initialize(const string& map_file,
@@ -315,12 +340,31 @@ void ParticleFilter::Initialize(const string& map_file,
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   map_.Load(map_file);
+  odom_initialized_ = false;
+
+  // Reset particles to zero
+  for (auto & sample : particles_) {
+    sample.loc.setZero();
+    sample.angle = 0.;
+    sample.weight = 0.;
+  }
 
   // add uncertainty around initialized loc and angle
   for (auto & sample : particles_) {
     sample.loc.x() = loc.x() + rng_.Gaussian(0, 0.01);  // allow 1 cm error
     sample.loc.y() = loc.y() + rng_.Gaussian(0, 0.01);  // allow 1 cm error
     sample.angle = angle + rng_.Gaussian(0, 0.1);       // allow 6 deg error
+  }
+  // [DEBUG]
+  if (b_DEBUG) {
+    Vector2f loc_sum(0., 0.);
+    for (const auto &p: particles_) {
+      loc_sum += p.loc;
+    }
+    loc_sum /= particles_.size();
+    std::cout << "============================= INITIALIZE ============================= " << std::endl;
+    std::cout << "[Initialize] Location: (" << loc_sum.transpose() << ")" <<
+              " w/" << particles_.size() << " particles" << std::endl;
   }
 
   // update previous odometry
@@ -329,7 +373,8 @@ void ParticleFilter::Initialize(const string& map_file,
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
-                                 float* angle_ptr) const {
+                                 float* angle_ptr,
+                                 bool b_print) const {
   Vector2f& loc = *loc_ptr;
   float& angle = *angle_ptr;
   // Compute the best estimate of the robot's location based on the current set
@@ -339,6 +384,9 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   if (!odom_initialized_) {
     loc(0., 0.);
     angle = 0.;
+    if (b_DEBUG) {
+      std::cout << "Initialization not complete, yet" << std::endl;
+    }
   }
 
   // compute average location and mean angle using atan2
@@ -353,9 +401,9 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   loc = loc_sum / particles_.size();
   angle = std::atan2(sin_theta_sum / particles_.size(),
                      cos_theta_sum / particles_.size());
-  if (b_DEBUG) {
-    std::cout << "Location: (" << loc.transpose() << ")" << std::endl;
-    std::cout << "Angle: (" << angle << ")" << std::endl;
+  if (b_DEBUG && b_print) {
+    std::cout << "[GetLocation] (Location, Angle): (" << loc.transpose() << ", "
+              << angle << ")" << std::endl;
   }
 
 }
