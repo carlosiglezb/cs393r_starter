@@ -96,7 +96,6 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
   oa_controller_ = std::make_shared<CarObstacleAvoidance>(car_width, car_length,
                                         car_wheelbase, n_paths_, n_scan_points);
   w_p_goal_(2., 0.);     // goal in world frame
-  twist_measured_.setZero();
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -141,15 +140,10 @@ void Navigation::Run() {
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
 
-  // Read sensor data
-  twist_measured_.x() = robot_vel_.x();
-  twist_measured_.y() = robot_vel_.y();
-  twist_measured_.z() = robot_omega_;
-
   //
   // Obstacle Avoidance Control loop
   //
-  oa_controller_->doControl(point_cloud_, w_p_goal_, twist_measured_);
+  oa_controller_->doControl(point_cloud_, w_p_goal_);
 
   // Drive commands:
    drive_msg_.curvature = oa_controller_->getCmdCurvature();

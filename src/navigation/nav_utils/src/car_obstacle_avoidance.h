@@ -23,8 +23,7 @@ public:
     ~CarObstacleAvoidance();
 
     void doControl(const std::vector<Eigen::Vector2f> &point_cloud,
-                   const Eigen::Vector2f &w_p_goal,
-                   const Eigen::Vector3f &twist_2d_measured);
+                   const Eigen::Vector2f &w_p_goal);
     float getClearance(const unsigned int path_idx) const;
 
 private:

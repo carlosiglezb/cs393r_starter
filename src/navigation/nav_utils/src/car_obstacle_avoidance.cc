@@ -46,8 +46,7 @@ CarObstacleAvoidance::CarObstacleAvoidance(float car_width,
 CarObstacleAvoidance::~CarObstacleAvoidance() = default;
 
 void CarObstacleAvoidance::doControl(const std::vector<Eigen::Vector2f> &point_cloud,
-                                     const Eigen::Vector2f &w_p_goal,
-                                     const Eigen::Vector3f &twist_measured) {
+                                     const Eigen::Vector2f &w_p_goal) {
   float dist_to_goal, r;
   float clearance;
   unsigned int min_free_path_idx, max_score_idx;
@@ -118,14 +117,10 @@ void CarObstacleAvoidance::doControl(const std::vector<Eigen::Vector2f> &point_c
   cmd_vel_ = toc_controller_->compute1DTOC(score_mgr_->getFpDistance(max_score_idx));
   cmd_curvature_ = candidate_curvatures_[max_score_idx];
 
-  Eigen::Matrix2f w_R_c;
-  w_R_c << std::cos(theta_), -std::sin(theta_),
-            std::sin(theta_), std::cos(theta_);
   // Update state estimate for next time step
-//  w_p_car_.x() += twist_measured.x() * dt;
-//  w_p_car_.y() += twist_measured.y() * dt;
-  w_p_car_ += w_R_c * twist_measured.head(2) * dt;
-  theta_ += twist_measured.z() * dt;
+  w_p_car_.x() += cmd_vel_ * std::cos(cmd_curvature_) * dt;
+  w_p_car_.y() += cmd_vel_ * std::sin(cmd_curvature_) * dt;
+  theta_ += cmd_vel_ * cmd_curvature_ * dt;
 }
 
 void CarObstacleAvoidance::resetFreePathsVec() {
