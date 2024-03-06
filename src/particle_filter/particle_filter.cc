@@ -59,10 +59,18 @@ ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    particles_(n_particles) {
+    particles_(n_particles),
+    prev_particles_(n_particles) {
 
   // Initialize to zero
   for (auto & sample : particles_) {
+    sample.loc.setZero();
+    sample.angle = 0.;
+    sample.weight = 0.;
+  }
+
+  // Initialize to zero
+  for (auto & sample : prev_particles_) {
     sample.loc.setZero();
     sample.angle = 0.;
     sample.weight = 0.;
@@ -300,6 +308,9 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
 
   // Get change in angle in odom frame
   float base_delta_angle = odom_angle - prev_odom_angle_;
+  std::cout << "[Predict] (base_delta_pos, base_delta_angle): ("
+            << base_delta_pos.transpose() << ", "
+            << base_delta_angle << ")" << std::endl;
 
   // Add uncertainty
   for (auto & sample : particles_) {
@@ -318,19 +329,51 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     sample.angle += (base_delta_angle + delta_angle_err);
   }
 
+  // Find raw mean position at current time step
+  Vector2f loc_sum(0., 0.);
+  for (const auto &p: prev_particles_) {
+    loc_sum += p.loc;
+  }
+  loc_sum /= prev_particles_.size();
+
+  // Remove particles that collide with map
+  for (size_t i = 0; i < particles_.size(); ++i) {
+    const Vector2f& loc = particles_[i].loc;
+    const Vector2f& prev_loc = prev_particles_[i].loc;
+
+    // if particle has gone through a wall, resample from raw mean
+    if (map_.Intersects(loc, prev_loc)) {
+
+      // Resample error
+      Vector2f delta_pos_err(0., 0.);
+      delta_pos_err.x() = sampleNormal(k1_, base_delta_pos.norm(), 0., base_delta_angle);
+      delta_pos_err.y() = sampleNormal(k2_, base_delta_pos.norm(), 0., base_delta_angle);
+
+      Eigen::Matrix2f map_R_base;
+      Particle sample = particles_[i];
+      map_R_base << std::cos(sample.angle), -std::sin(sample.angle),
+              std::sin(sample.angle), std::cos(sample.angle);
+
+      // Get new estimated location for particle
+      particles_[i].loc = loc_sum + map_R_base * (base_delta_pos + delta_pos_err);
+    }
+  }
+
+  // Find corrected mean position at current time step
+  loc_sum(0., 0.);
+  for (const auto &p: particles_) {
+    loc_sum += p.loc;
+  }
+  loc_sum /= particles_.size();
+  // [DEBUG]
+  if (b_DEBUG) {
+    std::cout << "[Predict] Post_location: (" << loc_sum.transpose() << ")" << std::endl;
+  }
+
   // set current odometry reading as previous for next loop
   prev_odom_loc_ = odom_loc;
   prev_odom_angle_ = odom_angle;
-
-  // [DEBUG]
-  if (b_DEBUG) {
-    Vector2f loc_sum(0., 0.);
-    for (const auto &p: particles_) {
-      loc_sum += p.loc;
-    }
-    loc_sum /= particles_.size();
-    std::cout << "[Predict] Location: (" << loc_sum.transpose() << ")" << std::endl;
-  }
+  prev_particles_ = particles_;
 }
 
 void ParticleFilter::Initialize(const string& map_file,
@@ -370,6 +413,7 @@ void ParticleFilter::Initialize(const string& map_file,
   // update previous odometry
   prev_odom_loc_ = loc;
   prev_odom_angle_ = angle;
+  prev_particles_ = particles_;
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
