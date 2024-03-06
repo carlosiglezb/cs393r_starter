@@ -388,8 +388,8 @@ void ParticleFilter::Initialize(const string& map_file,
 
   // add uncertainty around initialized loc and angle
   for (auto & sample : particles_) {
-    sample.loc.x() = loc.x() + rng_.Gaussian(0, 0.01);  // allow 1 cm error
-    sample.loc.y() = loc.y() + rng_.Gaussian(0, 0.01);  // allow 1 cm error
+    sample.loc.x() = loc.x() + rng_.Gaussian(0, 0.05);  // allow 5 cm error
+    sample.loc.y() = loc.y() + rng_.Gaussian(0, 0.05);  // allow 5 cm error
     sample.angle = angle + rng_.Gaussian(0, 0.1);       // allow 6 deg error
   }
   // [DEBUG]
