@@ -36,7 +36,7 @@
 
 #include "vector_map/vector_map.h"
 
-#define b_DEBUG true
+#define b_DEBUG false
 
 using geometry::line2f;
 using std::cout;
@@ -313,9 +313,11 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
 
   // Get change in angle in odom frame
   float base_delta_angle = odom_angle - prev_odom_angle_;
-  std::cout << "[Predict] (base_delta_pos, base_delta_angle): ("
-            << base_delta_pos.transpose() << ", "
+  if (b_DEBUG) {
+    std::cout << "[Predict] (base_delta_pos, base_delta_angle): ("
+              << base_delta_pos.transpose() << ", "
             << base_delta_angle << ")" << std::endl;
+  }
 
   // Add uncertainty
   for (auto & sample : particles_) {
