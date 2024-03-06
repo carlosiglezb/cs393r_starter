@@ -125,6 +125,7 @@ private:
   // List of particles being tracked.
   std::vector<Particle> particles_;
   std::vector<Particle> prev_particles_;
+  float max_laser_range_;
   // Model (tuning) uncertainty parameters
   float k1_;    // translational (x) error from translational movement
   float k2_;    // rotational error from translational movement

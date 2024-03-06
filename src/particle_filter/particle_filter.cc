@@ -75,6 +75,7 @@ ParticleFilter::ParticleFilter() :
     sample.angle = 0.;
     sample.weight = 0.;
   }
+  max_laser_range_ = 10.; // [m]
 
   // tuning parameters of motion model
   k1_ = 8e-2;
@@ -113,31 +114,41 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     scan[i] = Vector2f(0, 0);
   }
 
-  // The line segments in the map are stored in the `map_.lines` variable. You
-  // can iterate through them as:
-  const Vector2f laser_loc(loc[0] + 0.2 * cos(angle), loc[1] + 0.2 * sin(angle));
-  for (size_t i = 0; i < map_.lines.size(); ++i) {
-    const line2f map_line = map_.lines[i];
-    const float angle_increment = (angle_max - angle_min) / num_ranges;
-    float laser_angle = angle_min;
-    for (int i = 0; i < num_ranges; i+=laser_interval_) {
-      float laser_x = cos(laser_angle + angle);
-      float laser_y = sin(laser_angle + angle);
-      line2f laser_line(
-        laser_loc[0] + range_min * laser_x,
-        laser_loc[1] + range_min * laser_y,
-        laser_loc[0] + range_max * laser_x,
-        laser_loc[1] + range_max * laser_y);
+  const Vector2f laser_loc(loc[0] + 0.2 * std::cos(angle), loc[1] + 0.2 * std::sin(angle));
+  const float angle_increment = (angle_max - angle_min) / num_ranges;
+  float laser_angle = angle_min;
+  for (int j = 0; j < num_ranges; j += laser_interval_) {
+    float laser_x = std::cos(laser_angle + angle);
+    float laser_y = std::sin(laser_angle + angle);
+    line2f laser_line(
+            laser_loc[0] + range_min * laser_x,
+            laser_loc[1] + range_min * laser_y,
+            laser_loc[0] + range_max * laser_x,
+            laser_loc[1] + range_max * laser_y);
+    float prev_scan_dist = max_laser_range_;
+    for (size_t i = 0; i < map_.lines.size(); ++i) {
+      const line2f map_line = map_.lines[i];
       bool intersects = map_line.Intersects(laser_line);
       Vector2f intersection_point;
       intersects = map_line.Intersection(laser_line, &intersection_point);
+
+      // if current scan intersect this map line, save it in scan and proceed to next laser scan
       if (intersects) {
-        scan[i] = intersection_point;
-      } else {
-        scan[i] = Vector2f(laser_line.p1.x(), laser_line.p1.y());
+        float curr_scan_dist = (laser_loc - intersection_point).norm();
+        // check and grab closest intersection when there are multiple intersections
+        if (curr_scan_dist < prev_scan_dist) {
+          scan[j] = intersection_point;
+          prev_scan_dist = curr_scan_dist;    // update closest scan
+        }
+      } else {  // current scan does not intersect current map line
+
+        // if current scan has not intersected previous map lines, assign max range in scan direction
+        if (prev_scan_dist >= max_laser_range_ - 0.01) {
+          scan[j] = Vector2f(laser_line.p1.x(), laser_line.p1.y());
+        }
       }
-      laser_angle += angle_increment * laser_interval_;
     }
+    laser_angle += angle_increment * laser_interval_;
   }
 }
 
@@ -169,7 +180,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
           angle_min,
           angle_max,
           &predicted_scan);
-  const Vector2f laser_loc(particle.loc[0] + 0.2 * cos(particle.angle), particle.loc[1] + 0.2 * sin(particle.angle));
+  const Vector2f laser_loc(particle.loc[0] + 0.2 * std::cos(particle.angle), particle.loc[1] + 0.2 * std::sin(particle.angle));
   vector<float> likelihoods(num_ranges);
   for (int i = 0; i < num_ranges; i+= laser_interval_) {
     float observed_range = ranges[i];
@@ -234,7 +245,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 
   // Resample particles based on their importance weights
-  Resample();
+//  Resample();
 
   // [DEBUG]
   if (b_DEBUG) {
