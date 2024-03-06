@@ -184,6 +184,10 @@ void ParticleFilter::Update(const vector<float>& ranges,
   vector<float> likelihoods(num_ranges);
   for (int i = 0; i < num_ranges; i+= laser_interval_) {
     float observed_range = ranges[i];
+    if (observed_range > range_max || observed_range < range_min) {
+      likelihoods[i] = 0;
+      continue;
+    }
     Vector2f predicted_point = predicted_scan[i];
     float predicted_range = sqrt(pow(laser_loc[0] - predicted_point[0], 2) + pow(laser_loc[1] - predicted_point[1], 2));
     likelihoods[i] = pow((observed_range - predicted_range) / sigma_, 2);
@@ -193,7 +197,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
   for (float likelihood: likelihoods) {
     log_likelihood += likelihood;
   }
-  particle.weight = -gamma_ * log_likelihood;
+  particle.weight = exp(-gamma_ * log_likelihood);
 }
 
 std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Particle>& particles) {
