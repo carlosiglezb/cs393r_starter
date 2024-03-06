@@ -48,7 +48,7 @@ using Eigen::Vector2f;
 using Eigen::Vector2i;
 using vector_map::VectorMap;
 
-static double n_particles = 50;
+static double n_particles = 100;
 DEFINE_double(num_particles, n_particles, "Number of particles");
 
 namespace particle_filter {
@@ -77,14 +77,14 @@ ParticleFilter::ParticleFilter() :
   }
 
   // tuning parameters of motion model
-  k1_ = 3e-2;
+  k1_ = 8e-2;
   k2_ = 1e-1;
-  k3_ = 1e-3;
-  k4_ = 1e-3;
+  k3_ = 1e-2;
+  k4_ = 1e-2;
 
-  laser_interval_ = 1;
+  laser_interval_ = 20;   // TODO figure out what to do with the weight of skipped scans
   gamma_ = 1.0;
-  sigma_ = 1.0;
+  sigma_ = 0.2;
 }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
@@ -216,12 +216,6 @@ void ParticleFilter::Resample() {
   // Resample the particles, proportional to their weights.
   vector<Particle> new_particles = resampleParticles(particles_);
   particles_ = new_particles;
-
-  // You will need to use the uniform random number generator provided. For
-  // example, to generate a random number between 0 and 1:
-  //  float x = rng_.UniformRandom(0, 1);
-  //  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
-  //         x);
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
