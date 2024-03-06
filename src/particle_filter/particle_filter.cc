@@ -194,6 +194,8 @@ void ParticleFilter::Update(const vector<float>& ranges,
     log_likelihood += likelihood;
   }
   particle.weight = -gamma_ * log_likelihood;
+  std::cout << "Particle log_likelihood: " << log_likelihood << std::endl;
+  std::cout << "Particle weight: " << particle.weight << std::endl;
 }
 
 std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Particle>& particles) {
@@ -245,7 +247,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 
   // Resample particles based on their importance weights
-//  Resample();
+ Resample();
 
   // [DEBUG]
   if (b_DEBUG) {
