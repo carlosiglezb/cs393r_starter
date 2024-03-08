@@ -48,7 +48,7 @@ using Eigen::Vector2f;
 using Eigen::Vector2i;
 using vector_map::VectorMap;
 
-static double n_particles = 100;
+static double n_particles = 30;
 DEFINE_double(num_particles, n_particles, "Number of particles");
 
 namespace particle_filter {
@@ -75,17 +75,18 @@ ParticleFilter::ParticleFilter() :
     sample.angle = 0.;
     sample.weight = 0.;
   }
-  max_laser_range_ = 10.; // [m]
+  max_laser_range_ = 30.; // [m]
 
   // tuning parameters of motion model
-  k1_ = 8e-2;
-  k2_ = 1e-1;
+  k1_ = 8e-3;
+  k2_ = 1e-4;
   k3_ = 1e-2;
   k4_ = 1e-2;
+  kv1_ = 0.08;
 
-  laser_interval_ = 1;   // TODO figure out what to do with the weight of skipped scans
-  gamma_ = 1.0;
-  sigma_ = 100.0;
+  laser_interval_ = 10;
+  gamma_ = 0.8;
+  sigma_ = 20.0;
 }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
@@ -211,9 +212,9 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // std::cout << "gamma_: " << gamma_ << std::endl;
   // std::cout << "Particle log_likelihood: " << log_likelihood << std::endl;
   // std::cout << "Particle -gamma_ * log_likelihood: " << -gamma_ * log_likelihood << std::endl;
-  if (particle.weight > 0) {
-    std::cout << "Particle weight: " << particle.weight << std::endl;
-  }  
+//  if (particle.weight > 0) {
+//    std::cout << "Particle weight: " << particle.weight << std::endl;
+//  }
 }
 
 std::vector<Particle> ParticleFilter::resampleParticles(const std::vector<Particle>& particles) {
@@ -344,7 +345,7 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     // Compute the estimated change in pose for each particle
     // note: the orientation of each particle may be different
     Vector2f delta_pos_err(0., 0.);
-    delta_pos_err.x() = sampleNormal(k1_, base_delta_pos.norm(), 0., base_delta_angle);
+    delta_pos_err.x() = sampleNormal(k1_, base_delta_pos.norm(), 0., base_delta_angle) + kv1_ * base_delta_pos.norm();
     delta_pos_err.y() = sampleNormal(k2_, base_delta_pos.norm(), 0., base_delta_angle);
     float delta_angle_err = sampleNormal(k3_, base_delta_pos.norm(), k4_, base_delta_angle);
 
@@ -421,9 +422,9 @@ void ParticleFilter::Initialize(const string& map_file,
 
   // add uncertainty around initialized loc and angle
   for (auto & sample : particles_) {
-    sample.loc.x() = loc.x() + rng_.Gaussian(0, 0.05);  // allow 5 cm error
-    sample.loc.y() = loc.y() + rng_.Gaussian(0, 0.05);  // allow 5 cm error
-    sample.angle = angle + rng_.Gaussian(0, 0.1);       // allow 6 deg error
+    sample.loc.x() = loc.x() + rng_.Gaussian(0, 0.1);  // allow 5 cm error
+    sample.loc.y() = loc.y() + rng_.Gaussian(0, 0.1);  // allow 5 cm error
+    sample.angle = angle + rng_.Gaussian(0, 0.15);       // allow 6 deg error
   }
   // [DEBUG]
   if (b_DEBUG) {
