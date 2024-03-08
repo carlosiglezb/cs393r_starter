@@ -48,7 +48,7 @@ using Eigen::Vector2f;
 using Eigen::Vector2i;
 using vector_map::VectorMap;
 
-static double n_particles = 30;
+static double n_particles = 50;
 DEFINE_double(num_particles, n_particles, "Number of particles");
 
 namespace particle_filter {
@@ -80,13 +80,13 @@ ParticleFilter::ParticleFilter() :
   // tuning parameters of motion model
   k1_ = 8e-3;
   k2_ = 1e-4;
-  k3_ = 1e-2;
-  k4_ = 1e-2;
-  kv1_ = 0.08;
+  k3_ = 1e-3;
+  k4_ = 1e-3;
+  kv1_ = 0.0;
 
-  laser_interval_ = 10;
-  gamma_ = 0.8;
-  sigma_ = 20.0;
+  laser_interval_ = 5;
+  gamma_ = 0.9;
+  sigma_ = 10.0;
 }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
