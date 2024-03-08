@@ -48,7 +48,7 @@ using Eigen::Vector2f;
 using Eigen::Vector2i;
 using vector_map::VectorMap;
 
-static double n_particles = 50;
+static double n_particles = 80;
 DEFINE_double(num_particles, n_particles, "Number of particles");
 
 namespace particle_filter {
@@ -86,7 +86,7 @@ ParticleFilter::ParticleFilter() :
 
   laser_interval_ = 5;
   gamma_ = 0.9;
-  sigma_ = 10.0;
+  sigma_ = 5.0;
 }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
