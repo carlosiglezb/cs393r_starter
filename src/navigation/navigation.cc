@@ -96,9 +96,28 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
   oa_controller_ = std::make_shared<CarObstacleAvoidance>(car_width, car_length,
                                         car_wheelbase, n_paths_, n_scan_points);
   w_p_goal_(2., 0.);     // goal in world frame
+
+  // Global planner
+  robot_pos_ = Point(0., 0.);
+  robot_goal_ = Point(0., 0.);
+  rrt_ = RRT();
+  rrt_.readObstaclesFromFile(GetMapFileFromName(map_name));
+  b_nav_goal_set_ = false;
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+
+  if (!odom_initialized_) {
+    std::cout << "Initialize odometry first" << std::endl;
+    return;
+  }
+
+  std::cout << "SetPose was at: " << robot_loc_.transpose() << std::endl;
+  robot_pos_ = Point(robot_loc_.x(), robot_loc_.y());
+  std::cout << "NavGoal set to: " << loc.transpose() << std::endl;
+  robot_goal_ = Point(loc.x(), loc.y());
+  rrt_.generate(robot_pos_, robot_goal_);
+  b_nav_goal_set_ = true;
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
@@ -140,6 +159,10 @@ void Navigation::Run() {
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
 
+  // If planner has not finished, we can't do anything.
+  if (!b_nav_goal_set_) return;
+
+
   //
   // Obstacle Avoidance Control loop
   //
@@ -147,7 +170,7 @@ void Navigation::Run() {
 
   // Drive commands:
    drive_msg_.curvature = oa_controller_->getCmdCurvature();
-   drive_msg_.velocity = oa_controller_->getCmdVel();
+   drive_msg_.velocity = 0; //oa_controller_->getCmdVel();
 
    // Move waypoint away by two more meters in x-direction
    if ((w_p_goal_ - oa_controller_->getPosEst()).norm() - 1. < 0.) {

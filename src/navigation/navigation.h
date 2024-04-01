@@ -29,6 +29,9 @@
 // Obstacle Avoidance
 #include "nav_utils/src/car_obstacle_avoidance.h"
 
+// Global Planner
+#include "global_planner/rrt.h"
+
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
 
@@ -111,6 +114,12 @@ class Navigation {
   std::shared_ptr<CarObstacleAvoidance> oa_controller_;
   unsigned int n_paths_;
   Eigen::Vector2f w_p_goal_;
+
+  // Global planner parameters
+  Point robot_pos_;
+  Point robot_goal_;
+  RRT rrt_;
+  bool b_nav_goal_set_;
 };
 
 }  // namespace navigation
