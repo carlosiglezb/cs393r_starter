@@ -30,9 +30,15 @@ struct LineSegment {
 class RRT {
 
 public:
-    RRT(const Point& start, const Point& end, double stepSize, double goalRadius, int maxIterations, double minX, double maxX, double minY, double maxY);
+    RRT(double stepSize=0.5,
+        double goalRadius=0.5,
+        int maxIterations=1e8,
+        double minX=-45.,
+        double maxX=45.,
+        double minY=-30.,
+        double maxY=30);
     ~RRT();
-    void generate();
+    void generate(const Point& start, const Point& end);
     void readObstaclesFromFile(const std::string& filename);
 
 private:

@@ -21,9 +21,9 @@ int main() {
     
 
 
-    RRT rrt(start, end, stepSize, goalRadius, maxIterations, minX, maxX, minY, maxY);
+    RRT rrt(stepSize, goalRadius, maxIterations, minX, maxX, minY, maxY);
     rrt.readObstaclesFromFile("../../../../../amrl_maps/GDC3/GDC3.vectormap.txt"); // You may need to change the path to the file
-    rrt.generate();
+    rrt.generate(start, end);
 
     return 0;
 }

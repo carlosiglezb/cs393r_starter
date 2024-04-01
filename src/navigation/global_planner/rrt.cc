@@ -44,9 +44,10 @@ static bool checkIntersection(const LineSegment &line1, const LineSegment &line2
 }
 
 
-RRT::RRT(const Point& start, const Point& end, double stepSize, double goalRadius, int maxIterations, double minX, double maxX, double minY, double maxY)
-        : start(start), end(end), stepSize(stepSize), goalRadius(goalRadius), maxIterations(maxIterations), minX(minX), maxX(maxX), minY(minY), maxY(maxY) {
-  nodes.push_back(start);
+RRT::RRT(double stepSize, double goalRadius, int maxIterations, double minX, double maxX, double minY, double maxY)
+        : stepSize(stepSize), goalRadius(goalRadius), maxIterations(maxIterations), minX(minX), maxX(maxX), minY(minY), maxY(maxY) {
+  start = Point(minX, minY);
+  end = Point(maxX, maxY);
   parent.push_back(-1); // Start node has no parent
 }
 
@@ -127,7 +128,10 @@ void RRT::saveToFile(const std::string& pathFile, const std::string& treeFile) {
   treeStream.close();
 }
 
-void RRT::generate() {
+void RRT::generate(const Point &_start, const Point &_end) {
+  start = _start;
+  end = _end;
+  nodes.push_back(start);
   std::srand(static_cast<unsigned int>(std::time(0)));
   for (int i = 0; i < maxIterations; ++i) {
     Point randomPoint = getRandomPoint();
