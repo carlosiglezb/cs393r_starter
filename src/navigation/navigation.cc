@@ -112,6 +112,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
     return;
   }
 
+  // Planning with RRT
   std::cout << "SetPose was at: " << robot_loc_.transpose() << std::endl;
   robot_pos_ = Point(robot_loc_.x(), robot_loc_.y());
   std::cout << "NavGoal set to: " << loc.transpose() << std::endl;
@@ -185,6 +186,11 @@ void Navigation::Run() {
                  0xFF0000,    // red color
                  true,
                  local_viz_msg_);
+
+  // Visualize RRT path waypoints
+  for (auto point : rrt_.getRRTPathPoints()) {
+    visualization::DrawPoint(point, 0x0000FF, global_viz_msg_);
+  }
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();

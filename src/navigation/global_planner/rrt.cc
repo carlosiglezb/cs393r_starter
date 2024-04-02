@@ -48,6 +48,8 @@ RRT::RRT(double stepSize, double goalRadius, int maxIterations, double minX, dou
         : stepSize(stepSize), goalRadius(goalRadius), maxIterations(maxIterations), minX(minX), maxX(maxX), minY(minY), maxY(maxY) {
   start = Point(minX, minY);
   end = Point(maxX, maxY);
+  // clear rrt_path_points
+  rrt_path_points.clear();
   parent.push_back(-1); // Start node has no parent
 }
 
@@ -111,10 +113,16 @@ void RRT::saveToFile(const std::string& pathFile, const std::string& treeFile) {
   std::ofstream treeStream(treeFile);
 
   // Save final path
+  rrt_path_points.clear();
+  Eigen::Vector2f current_point;
   int currentIndex = nodes.size() - 1;
   while (currentIndex != -1) {
     pathStream << nodes[currentIndex].x << ", " << nodes[currentIndex].y << std::endl;
     currentIndex = parent[currentIndex];
+    current_point << nodes[currentIndex].x, nodes[currentIndex].y;
+    if (currentIndex != -1) {
+      rrt_path_points.push_back(current_point);
+    }
   }
 
   // Save tree structure
@@ -172,3 +180,8 @@ void RRT::readObstaclesFromFile(const std::string& filename) {
   }
   file.close();
 }
+
+const std::vector<Eigen::Vector2f> RRT::getRRTPathPoints() {
+  return rrt_path_points;
+}
+

@@ -120,6 +120,9 @@ class Navigation {
   Point robot_goal_;
   RRT rrt_;
   bool b_nav_goal_set_;
+
+  // Visualization for RRT plan
+  std::vector<Eigen::Vector2f> rrt_path_points_;
 };
 
 }  // namespace navigation

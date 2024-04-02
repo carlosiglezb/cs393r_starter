@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
-
+#include <eigen3/Eigen/Dense>
 
 struct Point {
     double x, y;
@@ -40,6 +40,7 @@ public:
     ~RRT();
     void generate(const Point& start, const Point& end);
     void readObstaclesFromFile(const std::string& filename);
+    const std::vector<Eigen::Vector2f> getRRTPathPoints();
 
 private:
     Point getRandomPoint();
@@ -56,7 +57,7 @@ private:
     int maxIterations;
     double minX, maxX, minY, maxY;
     std::vector<LineSegment> obstacles;
-
+    std::vector<Eigen::Vector2f> rrt_path_points;
 };
 
 
