@@ -95,13 +95,14 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
   // Obstacle Avoidance Controller
   oa_controller_ = std::make_shared<CarObstacleAvoidance>(car_width, car_length,
                                         car_wheelbase, n_paths_, n_scan_points);
-  w_p_goal_(2., 0.);     // goal in world frame
+  w_next_waypoint_(0., 0.);     // goal in world frame
 
   // Global planner
   robot_pos_ = Point(0., 0.);
   robot_goal_ = Point(0., 0.);
-  rrt_ = RRT();
+  rrt_ = RRT(1.);
   rrt_.readObstaclesFromFile(GetMapFileFromName(map_name));
+  n_waypoint_count_ = 1;
   b_nav_goal_set_ = false;
 }
 
@@ -118,13 +119,19 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   std::cout << "NavGoal set to: " << loc.transpose() << std::endl;
   robot_goal_ = Point(loc.x(), loc.y());
   rrt_.generate(robot_pos_, robot_goal_);
+
+  // Set first waypoint
+  n_waypoint_count_++;
+  w_next_waypoint_ << rrt_.getRRTPathPoint(n_waypoint_count_);
   b_nav_goal_set_ = true;
+  nav_complete_ = false;
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   localization_initialized_ = true;
   robot_loc_ = loc;
   robot_angle_ = angle;
+  oa_controller_->setCarPose(loc, angle);
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc,
@@ -163,19 +170,32 @@ void Navigation::Run() {
   // If planner has not finished, we can't do anything.
   if (!b_nav_goal_set_) return;
 
+  if (nav_complete_) {
+    drive_msg_.velocity = 0.;
+    drive_msg_.curvature = 0.;
+    drive_pub_.publish(drive_msg_);
+    return;
+  }
 
   //
   // Obstacle Avoidance Control loop
   //
-  oa_controller_->doControl(point_cloud_, w_p_goal_);
+//  std::cout << "w_next_waypoint_: " << w_next_waypoint_.transpose() << std::endl;
+//  std::cout << "robot_loc_: " << robot_loc_.transpose() << std::endl;
+  oa_controller_->doControl(point_cloud_, w_next_waypoint_);
 
   // Drive commands:
    drive_msg_.curvature = oa_controller_->getCmdCurvature();
-   drive_msg_.velocity = 0; //oa_controller_->getCmdVel();
+   drive_msg_.velocity = oa_controller_->getCmdVel();
 
    // Move waypoint away by two more meters in x-direction
-   if ((w_p_goal_ - oa_controller_->getPosEst()).norm() - 1. < 0.) {
-     w_p_goal_.x() += 2.;
+   if ((w_next_waypoint_ - robot_loc_).norm() - 1.0 < 0.) {
+     n_waypoint_count_++;
+     std::cout << "Waypoint Index: " << n_waypoint_count_ << std::endl;
+     w_next_waypoint_ = rrt_.getRRTPathPoint(n_waypoint_count_);
+     if (n_waypoint_count_ == int(rrt_.getRRTPathPoints().size())) {
+       nav_complete_ = true;
+     }
    }
 
   // Visualize commanded path

@@ -41,6 +41,7 @@ public:
     void generate(const Point& start, const Point& end);
     void readObstaclesFromFile(const std::string& filename);
     const std::vector<Eigen::Vector2f> getRRTPathPoints();
+    const Eigen::Vector2f getRRTPathPoint(const int idx);
 
 private:
     Point getRandomPoint();

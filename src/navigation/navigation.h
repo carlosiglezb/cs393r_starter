@@ -113,12 +113,13 @@ class Navigation {
   // Obstacle Avoidance controller
   std::shared_ptr<CarObstacleAvoidance> oa_controller_;
   unsigned int n_paths_;
-  Eigen::Vector2f w_p_goal_;
+  Eigen::Vector2f w_next_waypoint_;
 
   // Global planner parameters
   Point robot_pos_;
   Point robot_goal_;
   RRT rrt_;
+  int n_waypoint_count_;
   bool b_nav_goal_set_;
 
   // Visualization for RRT plan

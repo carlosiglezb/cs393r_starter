@@ -185,3 +185,7 @@ const std::vector<Eigen::Vector2f> RRT::getRRTPathPoints() {
   return rrt_path_points;
 }
 
+const Eigen::Vector2f RRT::getRRTPathPoint(const int idx) {
+  return rrt_path_points[rrt_path_points.size() - idx];
+}
+

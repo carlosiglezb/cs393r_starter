@@ -129,6 +129,11 @@ void CarObstacleAvoidance::resetFreePathsVec() {
   }
 }
 
+void CarObstacleAvoidance::setCarPose(const Eigen::Vector2f &pos, const float angle) {
+  w_p_car_ = pos;
+  theta_ = angle;
+}
+
 float CarObstacleAvoidance::getCmdVel() const {
   return cmd_vel_;
 }

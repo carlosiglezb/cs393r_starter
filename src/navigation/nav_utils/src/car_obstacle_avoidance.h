@@ -30,6 +30,8 @@ private:
     void resetFreePathsVec();
 
 public:
+    // Setters
+    void setCarPose(const Eigen::Vector2f &pos, const float angle);
     // Getters
     unsigned int getMaxScoreIdx() const;
     float getCmdVel() const;

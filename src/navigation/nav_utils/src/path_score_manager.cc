@@ -16,7 +16,7 @@ namespace nav_utils {
             dists_to_goal_(n_paths),
             fp_dist_(n_paths) {
       w_clear_ = 0.2;
-      w_dtg_ = -250.;
+      w_dtg_ = -4000.;
       idx_ = 0;
     }
 
