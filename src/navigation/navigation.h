@@ -124,6 +124,9 @@ class Navigation {
 
   // Visualization for RRT plan
   std::vector<Eigen::Vector2f> rrt_path_points_;
+
+  std::tuple<float, float> GetCurvature();
+  float GetVelocity(float distance_to_goal);
 };
 
 }  // namespace navigation
