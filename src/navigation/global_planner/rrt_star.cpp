@@ -135,24 +135,6 @@ public:
         return p.distance(projection);
     }
 
-
-    // bool isPathFree(const Point& newStart, const Point& newEnd, double minDistanceToObstacle) {
-    //     LineSegment newPath(newStart, newEnd);
-    //     for (const auto& obstacle : obstacles) {
-    //         if (checkIntersection(newPath, obstacle)) return false;
-
-    //         // Check distance from the new path's start and end points to each obstacle's endpoints
-    //         if (
-    //             newStart.distance(obstacle.start) < minDistanceToObstacle ||
-    //             newStart.distance(obstacle.end) < minDistanceToObstacle ||
-    //             newEnd.distance(obstacle.start) < minDistanceToObstacle ||
-    //             newEnd.distance(obstacle.end) < minDistanceToObstacle) {
-    //             return false;
-    //         }
-    //     }
-    //     return true;
-    // }
-
     bool isPathFree(const Point& newStart, const Point& newEnd, double minDistanceToObstacle) {
         LineSegment newPath(newStart, newEnd);
         double closestObstacleEndpointDist = std::numeric_limits<double>::max();
@@ -178,8 +160,6 @@ public:
 
         return true;
     }
-
-
 
     void addNewNode(const Point& randomPoint) {
         int nearestIdx = getNearestNodeIndex(randomPoint);
