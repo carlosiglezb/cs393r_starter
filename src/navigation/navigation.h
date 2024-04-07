@@ -121,8 +121,10 @@ class Navigation {
 //  RRT rrt_;
   RRTStar rrt_star_;
   int n_waypoint_count_;
+  unsigned int rev_drive_counter_;
   bool b_nav_goal_set_;
   bool b_last_waypoint_;
+  bool b_replanning_;
 
   // Visualization for RRT plan
   std::vector<Eigen::Vector2f> rrt_path_points_;

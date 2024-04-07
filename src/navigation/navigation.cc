@@ -95,6 +95,7 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
   rrt_star_ = RRTStar(1., 0.5);
   rrt_star_.readObstaclesFromFile(GetMapFileFromName(map_name));
   n_waypoint_count_ = 1;
+  rev_drive_counter_ = 0;
   b_nav_goal_set_ = false;
   b_last_waypoint_ = false;
 }
@@ -110,6 +111,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   rrt_star_.reset();
   std::cout << "SetPose was at: " << robot_loc_.transpose() << std::endl;
   robot_pos_ = Point(robot_loc_.x(), robot_loc_.y());
+  nav_goal_loc_ = loc;
   std::cout << "NavGoal set to: " << loc.transpose() << std::endl;
   robot_goal_ = Point(loc.x(), loc.y());
 //  rrt_.generate(robot_pos_, robot_goal_);
@@ -181,8 +183,10 @@ void Navigation::Run() {
     n_waypoint_count_ = rrt_star_.getRRTPathPoints().size() - 1;
     w_next_waypoint_ << rrt_star_.getRRTPathPoint(n_waypoint_count_);
 
+    rev_drive_counter_ = 0;
     b_nav_goal_set_ = false;
     b_last_waypoint_ = false;
+    b_replanning_ = false;
     nav_complete_ = false;
     return;
   }
@@ -194,19 +198,63 @@ void Navigation::Run() {
   drive_msg_.curvature = new_cur;
   drive_msg_.velocity = new_vel;
 
-   // Move waypoint away by two more meters in x-direction
-   if (!b_last_waypoint_ && ((w_next_waypoint_ - robot_loc_).norm() - 1.0 < 0.)) {
-    //  n_waypoint_count_++;
-     n_waypoint_count_--; // Reverse the order of waypoints
-     std::cout << "Waypoint Index: " << n_waypoint_count_ << std::endl;
+  // TODO see if we come across another waypoint when deviated due to obstacle
+
+  if (!b_replanning_) {
+    // Move to next waypoint
+    if (!b_last_waypoint_ && ((w_next_waypoint_ - robot_loc_).norm() - 1.0 < 0.)) {
+      //  n_waypoint_count_++;
+      n_waypoint_count_--; // Reverse the order of waypoints
+      std::cout << "Waypoint Index: " << n_waypoint_count_ << std::endl;
 //     w_next_waypoint_ = rrt_.getRRTPathPoint(n_waypoint_count_);
-     w_next_waypoint_ = rrt_star_.getRRTPathPoint(n_waypoint_count_);
-    //  b_last_waypoint_ = n_waypoint_count_ == int(rrt_star_.getRRTPathPoints().size());
-     b_last_waypoint_ = (n_waypoint_count_ == 1); // Reverse the order of waypoints
-   } else {   // if last waypoint, just check if we are close enough to the goal
-     if ((w_next_waypoint_ - robot_loc_).norm() < 0.25) {
-       nav_complete_ = true;
-       std::cout << "Navigation complete!" << std::endl;
+      w_next_waypoint_ = rrt_star_.getRRTPathPoint(n_waypoint_count_);
+      //  b_last_waypoint_ = n_waypoint_count_ == int(rrt_star_.getRRTPathPoints().size());
+      b_last_waypoint_ = (n_waypoint_count_ == 1); // Reverse the order of waypoints
+    } else {   // if last waypoint, just check if we are close enough to the goal
+      if ((w_next_waypoint_ - robot_loc_).norm() < 0.4) {
+        nav_complete_ = true;
+        std::cout << "Navigation complete!" << std::endl;
+      }
+    }
+  }
+
+   // Re-plan if car comes to a stop and has not arrived to next waypoint
+   if (!b_replanning_ && !nav_complete_ && (std::abs(new_vel) <= 0.08)) {
+     b_replanning_ = true;
+   }
+
+   if (b_replanning_) {
+     if (rev_drive_counter_ < 40) {
+       std::cout << "---- Replanning ----" << std::endl;
+       // first, reverse to get space to turn
+       new_vel = -0.5;
+       drive_msg_.velocity = -0.5;
+       drive_msg_.curvature = 0.0;
+       rev_drive_counter_++;
+     } else {
+       // after moving a meter back, stop and re-plan
+       drive_msg_.velocity = 0.0;
+
+       // reset navigation flags
+//       rrt_star_.labelAsObstacle(w_next_waypoint_); // if using current waypoint
+       rrt_star_.labelAsObstacle(rrt_star_.getRRTPathPoint(n_waypoint_count_+1)); // if previous waypoint
+       rrt_star_.reset();
+       rev_drive_counter_ = 0;
+       b_nav_goal_set_ = true;
+       b_last_waypoint_ = false;
+       nav_complete_ = false;
+       b_replanning_ = false;
+       robot_pos_ = Point(robot_loc_.x(), robot_loc_.y());
+       robot_goal_ = Point(nav_goal_loc_.x(), nav_goal_loc_.y());
+       std::cout << "Computing new plan from " << robot_loc_.transpose() <<
+                " to " << nav_goal_loc_.transpose() << std::endl;
+
+       // re-plan
+       rrt_star_.generate(robot_pos_, robot_goal_);
+
+       // update waypoints
+       n_waypoint_count_ = rrt_star_.getRRTPathPoints().size() - 1;
+       w_next_waypoint_ << rrt_star_.getRRTPathPoint(n_waypoint_count_);
      }
    }
 
