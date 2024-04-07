@@ -12,20 +12,7 @@
 #include <vector>
 #include <sstream>
 #include <eigen3/Eigen/Dense>
-
-struct Point {
-    double x, y;
-    Point(double x = 0, double y = 0) : x(x), y(y) {}
-    double distance(const Point& other) const {
-      return std::sqrt(std::pow(x - other.x, 2) + std::pow(y - other.y, 2));
-    }
-};
-
-struct LineSegment {
-    Point start, end;
-    LineSegment(const Point& start, const Point& end) : start(start), end(end) {}
-};
-
+#include "geometry_tools.hpp"
 
 class RRT {
 
