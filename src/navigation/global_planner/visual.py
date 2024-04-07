@@ -19,7 +19,7 @@ def read_obstacles(file_path):
 # Load data
 tree_data = read_points("tree_structure.txt")
 path_data = read_points("final_path.txt")
-obstacles = read_obstacles("../../../amrl_maps/GDC3/GDC3.vectormap.txt")
+obstacles = read_obstacles("../../../../amrl_maps/GDC1/GDC1.vectormap.txt")
 # obstacles = read_obstacles("map_data.txt")
 
 # Plot obstacles
