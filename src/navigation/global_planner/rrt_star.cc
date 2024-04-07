@@ -135,21 +135,84 @@ void RRTStar::rewire(std::vector<int>& nearbyNodes, int newNodeIndex) {
     }
 }
 
+void RRTStar::populateRRTPathPoints() {
+    rrt_path_points.clear();
+    int currentIndex = nodes.size() - 1;
+    while (currentIndex != -1) {
+        Eigen::Vector2f current_point;
+        current_point << nodes[currentIndex].x, nodes[currentIndex].y;
+        rrt_path_points.push_back(current_point);
+        currentIndex = parent[currentIndex];
+    }
+    std::reverse(rrt_path_points.begin(), rrt_path_points.end());
+}
+
+void RRTStar::incrementalSmoothPath() {
+    if (rrt_path_points.empty()) return;
+
+    std::vector<Eigen::Vector2f> new_path;
+    new_path.push_back(rrt_path_points.front()); // Always include the start point.
+
+    size_t i = 0;
+    while (i < rrt_path_points.size() - 1) {
+        size_t j = rrt_path_points.size() - 1;
+        while (j > i + 1) {
+            Eigen::Vector2f start = rrt_path_points[i];
+            Eigen::Vector2f end = rrt_path_points[j];
+            Point startPoint(start[0], start[1]);
+            Point endPoint(end[0], end[1]);
+            if (isPathFree(startPoint, endPoint, minDistanceToObstacle)) {
+                new_path.push_back(rrt_path_points[j]);
+                i = j; // Move to the next segment starting from j.
+                break; // Exit the inner loop.
+            }
+            j--;
+        }
+        if (j == i + 1) {
+            // No direct path is feasible, add the next point and try again from there.
+            new_path.push_back(rrt_path_points[i + 1]);
+            i++;
+        }
+    }
+
+    rrt_path_points = new_path; // Update the path with the smoothed version.
+}
+
+void RRTStar::interpolateWaypoints() {
+    if (rrt_path_points.size() < 2) return; // Ensure there are at least 2 points to interpolate between.
+
+    std::vector<Eigen::Vector2f> new_path;
+    for (size_t i = 0; i < rrt_path_points.size() - 1; ++i) {
+        Eigen::Vector2f start = rrt_path_points[i];
+        Eigen::Vector2f end = rrt_path_points[i + 1];
+        new_path.push_back(start); // Always include the segment's start point.
+
+        float segmentLength = (end - start).norm();
+        if (segmentLength > stepSize) {
+            int numPoints = static_cast<int>(std::ceil(segmentLength / stepSize)) - 1;
+            Eigen::Vector2f direction = (end - start).normalized();
+
+            for (int j = 1; j <= numPoints; ++j) {
+                Eigen::Vector2f newPoint = start + direction * (stepSize * j);
+                new_path.push_back(newPoint);
+            }
+        }
+    }
+    new_path.push_back(rrt_path_points.back());// Ensure the last point is included.
+
+    rrt_path_points = new_path; // Update the path with interpolated points.
+}
+
 void RRTStar::saveToFile(const std::string& pathFile, const std::string& treeFile) {
     std::ofstream pathStream(pathFile);
     std::ofstream treeStream(treeFile);
 
     // Save final path
-    rrt_path_points.clear();
-    Eigen::Vector2f current_point;
-    int currentIndex = nodes.size() - 1;
-    while (currentIndex != -1) {
-        pathStream << nodes[currentIndex].x << ", " << nodes[currentIndex].y << std::endl;
-        current_point << nodes[currentIndex].x, nodes[currentIndex].y;
-        rrt_path_points.push_back(current_point);
-        currentIndex = parent[currentIndex];
+    for (const auto& point : rrt_path_points) {
+        pathStream << point[0] << ", " << point[1] << std::endl;
     }
 
+    // Save tree structure
     for (size_t i = 1; i < nodes.size(); ++i) {
         Point& start = nodes[parent[i]];
         Point& end = nodes[i];
@@ -173,6 +236,10 @@ void RRTStar::generate(const Point &_start, const Point &_end) {
             break;
         }
     }
+    populateRRTPathPoints(); 
+    std::cout << "Path points before smoothing: " << rrt_path_points.size() << std::endl;
+    incrementalSmoothPath();
+    interpolateWaypoints();
     saveToFile("final_path.txt", "tree_structure.txt");
 }
 

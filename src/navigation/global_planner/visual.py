@@ -19,7 +19,7 @@ def read_obstacles(file_path):
 # Load data
 tree_data = read_points("tree_structure.txt")
 path_data = read_points("final_path.txt")
-obstacles = read_obstacles("../../../../amrl_maps/GDC1/GDC1.vectormap.txt")
+obstacles = read_obstacles("./GDC1.vectormap.txt")
 # obstacles = read_obstacles("map_data.txt")
 
 # Plot obstacles
@@ -35,8 +35,8 @@ path_x, path_y = zip(*path_data)
 plt.plot(path_x, path_y, 'b-', linewidth=1, label='Path')
 
 # Assuming the first point in the path data is the start and the last is the goal
-start_x, start_y = path_data[-1]
-goal_x, goal_y = path_data[0]
+start_x, start_y = path_data[0]
+goal_x, goal_y = path_data[-1]
 
 # Plot start and goal points
 plt.plot(start_x, start_y, 'go', markersize=5, label='Start')  # Start in green

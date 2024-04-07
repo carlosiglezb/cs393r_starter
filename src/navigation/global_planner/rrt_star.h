@@ -32,6 +32,9 @@ public:
     void readObstaclesFromFile(const std::string& filename);  // done
     const std::vector<Eigen::Vector2f> getRRTPathPoints();  // done
     const Eigen::Vector2f getRRTPathPoint(const int idx);   // done
+    void populateRRTPathPoints(); 
+    void incrementalSmoothPath();
+    void interpolateWaypoints();
 
 private:
     Point getRandomPoint();   // done
