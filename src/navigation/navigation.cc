@@ -114,12 +114,19 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
 //  rrt_.generate(robot_pos_, robot_goal_);
   rrt_star_.generate(robot_pos_, robot_goal_);
 
-  // Set first waypoint
-  n_waypoint_count_++;
-//  w_next_waypoint_ << rrt_.getRRTPathPoint(n_waypoint_count_);
+// // Set first waypoint
+//   n_waypoint_count_++;
+// //  w_next_waypoint_ << rrt_.getRRTPathPoint(n_waypoint_count_);
+//   w_next_waypoint_ << rrt_star_.getRRTPathPoint(n_waypoint_count_);
+//   b_nav_goal_set_ = true;
+//   nav_complete_ = false;
+
+  // Reverse the order of waypoints
+  n_waypoint_count_ = rrt_star_.getRRTPathPoints().size() - 1;
   w_next_waypoint_ << rrt_star_.getRRTPathPoint(n_waypoint_count_);
   b_nav_goal_set_ = true;
   nav_complete_ = false;
+  b_last_waypoint_ = (n_waypoint_count_ == 0);
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
@@ -180,16 +187,38 @@ void Navigation::Run() {
 
    // Move waypoint away by two more meters in x-direction
    if (!b_last_waypoint_ && ((w_next_waypoint_ - robot_loc_).norm() - 1.0 < 0.)) {
-     n_waypoint_count_++;
+    //  n_waypoint_count_++;
+     n_waypoint_count_--; // Reverse the order of waypoints
      std::cout << "Waypoint Index: " << n_waypoint_count_ << std::endl;
 //     w_next_waypoint_ = rrt_.getRRTPathPoint(n_waypoint_count_);
      w_next_waypoint_ = rrt_star_.getRRTPathPoint(n_waypoint_count_);
-     b_last_waypoint_ = n_waypoint_count_ == int(rrt_star_.getRRTPathPoints().size());
+    //  b_last_waypoint_ = n_waypoint_count_ == int(rrt_star_.getRRTPathPoints().size());
+     b_last_waypoint_ = (n_waypoint_count_ == 0); // Reverse the order of waypoints
    } else {   // if last waypoint, just check if we are close enough to the goal
      if ((w_next_waypoint_ - robot_loc_).norm() < 0.1) {
        nav_complete_ = true;
      }
    }
+
+  // Reverse the order of waypoints
+  // if (!b_last_waypoint_ && ((w_next_waypoint_ - robot_loc_).norm() - 1.0 < 0.)) {
+  //   n_waypoint_count_--;
+  //   std::cout << "Waypoint Index: " << n_waypoint_count_ << std::endl;
+  //   w_next_waypoint_ = rrt_star_.getRRTPathPoint(n_waypoint_count_);
+  //   b_last_waypoint_ = (n_waypoint_count_ == 0);
+  // } else {
+  //   if ((w_next_waypoint_ - robot_loc_).norm() < 0.1) {
+  //     nav_complete_ = true;
+  //   }
+  // }
+
+  // Print the index and coordinates of each waypoint
+  // const auto& pathPoints = rrt_star_.getRRTPathPoints();
+  // for (size_t i = 0; i < pathPoints.size(); ++i) {
+  //   const auto& point = pathPoints[i];
+  //   visualization::DrawPoint(point, 0x0000FF, global_viz_msg_); 
+  //   std::cout << "Waypoint Index: " << i << ", Coordinates: (" << point[0] << ", " << point[1] << ")" << std::endl;
+  // }
 
 
   // Visualize RRT path waypoints
