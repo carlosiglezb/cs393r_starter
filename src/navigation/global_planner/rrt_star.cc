@@ -1,4 +1,5 @@
 #include "rrt_star.h"
+#include "../../../../ut_automata/src/shared/math/geometry.h"
 
 RRTStar::RRTStar(double stepSize,
                  double goalRadius,
@@ -14,6 +15,8 @@ RRTStar::RRTStar(double stepSize,
     parent.push_back(-1);
     costs[0] = 0;
     rrt_path_points.clear();
+    waypoint_obstacles.clear();
+    point_obstacle_radius = 0.5;
 }
 
 RRTStar::~RRTStar() = default;
@@ -25,6 +28,7 @@ void RRTStar::reset() {
   costs.clear();
   costs[0] = 0;
   rrt_path_points.clear();
+//  waypoint_obstacles.clear();
 }
 
 Point RRTStar::getRandomPoint() {
@@ -72,6 +76,24 @@ bool RRTStar::isPathFree(const Point& newStart, const Point& newEnd, double _min
     LineSegment newPath(newStart, newEnd);
     double closestObstacleEndpointDist = std::numeric_limits<double>::max();
     double closestDistToNewEnd = std::numeric_limits<double>::max();
+
+    // Check if the random point is around waypoint labeled as obstacle
+    Eigen::Vector2f p0(newStart.x, newStart.y), p1(newEnd.x, newEnd.y);
+    Eigen::Vector2f r0, r1;
+  for (const Eigen::Vector2f & waypoint : waypoint_obstacles) {
+      int res = geometry::CircleLineIntersection(waypoint,
+                                                 point_obstacle_radius,
+                                                 p0,
+                                                 p1,
+                                                 &r0,
+                                                 &r1);
+      if (res > 0) {
+        std::cout << "Point " << newEnd.x << ", " << newEnd.y <<
+                  " is too close to obstacle waypoint " <<
+                  waypoint.transpose() << std::endl;
+        return false;
+      }
+    }
 
     for (const auto& obstacle : obstacles) {
         if (checkIntersection(newPath, obstacle)) return false;
@@ -282,4 +304,9 @@ const std::vector<Eigen::Vector2f> RRTStar::getRRTPathPoints() {
 
 const Eigen::Vector2f RRTStar::getRRTPathPoint(const int idx) {
   return rrt_path_points[rrt_path_points.size() - idx];
+}
+
+void RRTStar::labelAsObstacle(const Eigen::Vector2f &waypoint) {
+  std::cout << "Adding waypoint obstacle at: " << waypoint.transpose() << std::endl;
+  waypoint_obstacles.push_back(waypoint);
 }

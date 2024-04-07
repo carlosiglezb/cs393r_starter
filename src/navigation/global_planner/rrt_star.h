@@ -36,6 +36,7 @@ public:
     void incrementalSmoothPath();
     void interpolateWaypoints();
     void reset();
+    void labelAsObstacle(const Eigen::Vector2f& waypoint);
 
 private:
     Point getRandomPoint();   // done
@@ -52,6 +53,8 @@ private:
     std::vector<Point> nodes;
     std::vector<int> parent;
     std::unordered_map<int, double> costs;
+    std::vector<Eigen::Vector2f> waypoint_obstacles;
+    float point_obstacle_radius;
     Point start, end;
     double stepSize, goalRadius;
     int maxIterations;
