@@ -18,6 +18,14 @@ RRTStar::RRTStar(double stepSize,
 
 RRTStar::~RRTStar() = default;
 
+void RRTStar::reset() {
+  nodes.clear();
+  parent.clear();
+  parent.push_back(-1);
+  costs.clear();
+  costs[0] = 0;
+  rrt_path_points.clear();
+}
 
 Point RRTStar::getRandomPoint() {
     double x = minX + (std::rand() % static_cast<int>(maxX - minX + 1));

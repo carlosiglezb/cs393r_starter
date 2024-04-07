@@ -35,6 +35,7 @@ public:
     void populateRRTPathPoints(); 
     void incrementalSmoothPath();
     void interpolateWaypoints();
+    void reset();
 
 private:
     Point getRandomPoint();   // done

@@ -92,7 +92,7 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
   minDistanceToObstacle_ = 0.2;
 //  rrt_ = RRT(1.);
 //  rrt_.readObstaclesFromFile(GetMapFileFromName(map_name));
-  rrt_star_ = RRTStar(1., 1.);
+  rrt_star_ = RRTStar(1., 0.5);
   rrt_star_.readObstaclesFromFile(GetMapFileFromName(map_name));
   n_waypoint_count_ = 1;
   b_nav_goal_set_ = false;
@@ -107,6 +107,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   }
 
   // Planning with RRT
+  rrt_star_.reset();
   std::cout << "SetPose was at: " << robot_loc_.transpose() << std::endl;
   robot_pos_ = Point(robot_loc_.x(), robot_loc_.y());
   std::cout << "NavGoal set to: " << loc.transpose() << std::endl;
@@ -175,6 +176,14 @@ void Navigation::Run() {
     drive_msg_.velocity = 0.;
     drive_msg_.curvature = 0.;
     drive_pub_.publish(drive_msg_);
+
+    // reset navigation flags
+    n_waypoint_count_ = rrt_star_.getRRTPathPoints().size() - 1;
+    w_next_waypoint_ << rrt_star_.getRRTPathPoint(n_waypoint_count_);
+
+    b_nav_goal_set_ = false;
+    b_last_waypoint_ = false;
+    nav_complete_ = false;
     return;
   }
 
@@ -195,8 +204,9 @@ void Navigation::Run() {
     //  b_last_waypoint_ = n_waypoint_count_ == int(rrt_star_.getRRTPathPoints().size());
      b_last_waypoint_ = (n_waypoint_count_ == 1); // Reverse the order of waypoints
    } else {   // if last waypoint, just check if we are close enough to the goal
-     if ((w_next_waypoint_ - robot_loc_).norm() < 0.1) {
+     if ((w_next_waypoint_ - robot_loc_).norm() < 0.25) {
        nav_complete_ = true;
+       std::cout << "Navigation complete!" << std::endl;
      }
    }
 
