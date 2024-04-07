@@ -85,8 +85,8 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   }
   // Location of the laser on the robot. Assumes the laser is forward-facing.
   const Vector2f kLaserLoc(0.2, 0);
-  unsigned int n_scan_reduced = 481;  // use 120 deg fov
-  static vector<Vector2f> point_cloud_(n_scan_reduced);
+  // unsigned int n_scan_reduced = 481;  // use 120 deg fov
+  // static vector<Vector2f> point_cloud_(n_scan_reduced);
   // Convert the LaserScan to a point cloud
   // The LaserScan parameters are accessible as follows:
   // msg.angle_increment // Angular increment between subsequent rays
@@ -95,23 +95,34 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   // msg.range_max // Maximum observable range
   // msg.range_min // Minimum observable range
   // msg.ranges[i] // The range of the i'th ray
-  Eigen::Vector2f p_i;
-  float angle_i_deg = float(-60);     // initial scanned point [deg]
-  float angle_i_rad = angle_i_deg * M_PI / 180.;  // initial scanned point [rad]
-  float range_min_deg = msg.range_min * 180. / M_PI;
-  float angle_inc_deg = msg.angle_increment * 180. / M_PI;
-  unsigned int start_idx = abs(range_min_deg - angle_i_deg) / angle_inc_deg;
-  unsigned int idx = 0;
-  for (unsigned int i = start_idx; i < start_idx + n_scan_reduced; i++) {
-    p_i.setZero();
-
-    // TODO add safeguard against ranges < range_min and ranges > range_max
-    p_i.x() = msg.ranges[i] * cos(angle_i_rad) + kLaserLoc.x();
-    p_i.y() = msg.ranges[i] * sin(angle_i_rad) + kLaserLoc.y();
-    point_cloud_[idx] = p_i;
-    angle_i_rad += msg.angle_increment;
-    idx++;
+  static vector<Vector2f> point_cloud_;
+  point_cloud_.clear();
+  // Convert the LaserScan to a point cloud
+  float angle = msg.angle_min;
+  for (float range: msg.ranges) {
+    if (range > msg.range_min && range < msg.range_max) {
+      Vector2f point(range * cos(angle), range * sin(angle));
+      point_cloud_.push_back(point + kLaserLoc);
+    }
+    angle += msg.angle_increment;
   }
+  // Eigen::Vector2f p_i;
+  // float angle_i_deg = float(-60);     // initial scanned point [deg]
+  // float angle_i_rad = angle_i_deg * M_PI / 180.;  // initial scanned point [rad]
+  // float range_min_deg = msg.range_min * 180. / M_PI;
+  // float angle_inc_deg = msg.angle_increment * 180. / M_PI;
+  // unsigned int start_idx = abs(range_min_deg - angle_i_deg) / angle_inc_deg;
+  // unsigned int idx = 0;
+  // for (unsigned int i = start_idx; i < start_idx + n_scan_reduced; i++) {
+  //   p_i.setZero();
+
+  //   // TODO add safeguard against ranges < range_min and ranges > range_max
+  //   p_i.x() = msg.ranges[i] * cos(angle_i_rad) + kLaserLoc.x();
+  //   p_i.y() = msg.ranges[i] * sin(angle_i_rad) + kLaserLoc.y();
+  //   point_cloud_[idx] = p_i;
+  //   angle_i_rad += msg.angle_increment;
+  //   idx++;
+  // }
   navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
   if(b_print_debug) {
