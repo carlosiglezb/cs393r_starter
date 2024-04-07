@@ -85,28 +85,18 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
       "map", "navigation_global");
   InitRosHeader("base_link", &drive_msg_.header);
 
-  // Car dimensions.
-  float car_width = 0.281;
-  float car_length = 0.535;
-  float car_wheelbase = 0.324; // with bumper length might be 0.5
-//  float car_height = 0.15;
-
-  // Controller parameters
-  n_paths_ = 21;
-  unsigned int n_scan_points = 481;   // total are 1081
-
-  // Obstacle Avoidance Controller
-  oa_controller_ = std::make_shared<CarObstacleAvoidance>(car_width, car_length,
-                                        car_wheelbase, n_paths_, n_scan_points);
-  w_next_waypoint_(0., 0.);     // goal in world frame
-
   // Global planner
+  w_next_waypoint_(0., 0.);     // goal in world frame
   robot_pos_ = Point(0., 0.);
   robot_goal_ = Point(0., 0.);
-  rrt_ = RRT(1.);
-  rrt_.readObstaclesFromFile(GetMapFileFromName(map_name));
+  minDistanceToObstacle_ = 0.2;
+//  rrt_ = RRT(1.);
+//  rrt_.readObstaclesFromFile(GetMapFileFromName(map_name));
+  rrt_star_ = RRTStar(1., 1.);
+  rrt_star_.readObstaclesFromFile(GetMapFileFromName(map_name));
   n_waypoint_count_ = 1;
   b_nav_goal_set_ = false;
+  b_last_waypoint_ = false;
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -121,11 +111,13 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   robot_pos_ = Point(robot_loc_.x(), robot_loc_.y());
   std::cout << "NavGoal set to: " << loc.transpose() << std::endl;
   robot_goal_ = Point(loc.x(), loc.y());
-  rrt_.generate(robot_pos_, robot_goal_);
+//  rrt_.generate(robot_pos_, robot_goal_);
+  rrt_star_.generate(robot_pos_, robot_goal_);
 
   // Set first waypoint
   n_waypoint_count_++;
-  w_next_waypoint_ << rrt_.getRRTPathPoint(n_waypoint_count_);
+//  w_next_waypoint_ << rrt_.getRRTPathPoint(n_waypoint_count_);
+  w_next_waypoint_ << rrt_star_.getRRTPathPoint(n_waypoint_count_);
   b_nav_goal_set_ = true;
   nav_complete_ = false;
 }
@@ -134,7 +126,6 @@ void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   localization_initialized_ = true;
   robot_loc_ = loc;
   robot_angle_ = angle;
-  oa_controller_->setCarPose(loc, angle);
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc,
@@ -180,13 +171,6 @@ void Navigation::Run() {
     return;
   }
 
-  //
-  // Obstacle Avoidance Control loop
-  //
-//  std::cout << "w_next_waypoint_: " << w_next_waypoint_.transpose() << std::endl;
-//  std::cout << "robot_loc_: " << robot_loc_.transpose() << std::endl;
-  // oa_controller_->doControl(point_cloud_, w_next_waypoint_);
-
   // Drive commands:
   float new_cur, new_distance;
   std::tie(new_cur, new_distance) = GetCurvature();
@@ -195,26 +179,21 @@ void Navigation::Run() {
   drive_msg_.velocity = new_vel;
 
    // Move waypoint away by two more meters in x-direction
-   if ((w_next_waypoint_ - robot_loc_).norm() - 1.0 < 0.) {
+   if (!b_last_waypoint_ && ((w_next_waypoint_ - robot_loc_).norm() - 1.0 < 0.)) {
      n_waypoint_count_++;
      std::cout << "Waypoint Index: " << n_waypoint_count_ << std::endl;
-     w_next_waypoint_ = rrt_.getRRTPathPoint(n_waypoint_count_);
-     if (n_waypoint_count_ == int(rrt_.getRRTPathPoints().size())) {
+//     w_next_waypoint_ = rrt_.getRRTPathPoint(n_waypoint_count_);
+     w_next_waypoint_ = rrt_star_.getRRTPathPoint(n_waypoint_count_);
+     b_last_waypoint_ = n_waypoint_count_ == int(rrt_star_.getRRTPathPoints().size());
+   } else {   // if last waypoint, just check if we are close enough to the goal
+     if ((w_next_waypoint_ - robot_loc_).norm() < 0.1) {
        nav_complete_ = true;
      }
    }
 
-  // Visualize commanded path
-  unsigned int max_score = oa_controller_->getMaxScoreIdx();
-  visualization::DrawPathOption(oa_controller_->getCurvature(max_score),
-                 oa_controller_->getFpDistance(max_score),
-                 oa_controller_->getClearance(max_score),
-                 0xFF0000,    // red color
-                 true,
-                 local_viz_msg_);
 
   // Visualize RRT path waypoints
-  for (auto point : rrt_.getRRTPathPoints()) {
+  for (auto point : rrt_star_.getRRTPathPoints()) {
     visualization::DrawPoint(point, 0x0000FF, global_viz_msg_);
   }
 
@@ -411,7 +390,6 @@ tuple<float, float> Navigation::GetCurvature() {
       distance_to_goal = free_path_lengths[i];
     }
   }
-  cout << "\n";
   return std::make_tuple(curvature, distance_to_goal);
 }
 

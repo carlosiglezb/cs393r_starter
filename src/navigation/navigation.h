@@ -31,6 +31,7 @@
 
 // Global Planner
 #include "global_planner/rrt.h"
+#include "global_planner/rrt_star.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -111,16 +112,17 @@ class Navigation {
   vector_map::VectorMap map_;
 
   // Obstacle Avoidance controller
-  std::shared_ptr<CarObstacleAvoidance> oa_controller_;
-  unsigned int n_paths_;
   Eigen::Vector2f w_next_waypoint_;
 
   // Global planner parameters
   Point robot_pos_;
   Point robot_goal_;
-  RRT rrt_;
+  float minDistanceToObstacle_;
+//  RRT rrt_;
+  RRTStar rrt_star_;
   int n_waypoint_count_;
   bool b_nav_goal_set_;
+  bool b_last_waypoint_;
 
   // Visualization for RRT plan
   std::vector<Eigen::Vector2f> rrt_path_points_;
