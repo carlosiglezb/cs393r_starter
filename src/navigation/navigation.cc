@@ -193,7 +193,7 @@ void Navigation::Run() {
 //     w_next_waypoint_ = rrt_.getRRTPathPoint(n_waypoint_count_);
      w_next_waypoint_ = rrt_star_.getRRTPathPoint(n_waypoint_count_);
     //  b_last_waypoint_ = n_waypoint_count_ == int(rrt_star_.getRRTPathPoints().size());
-     b_last_waypoint_ = (n_waypoint_count_ == 0); // Reverse the order of waypoints
+     b_last_waypoint_ = (n_waypoint_count_ == 1); // Reverse the order of waypoints
    } else {   // if last waypoint, just check if we are close enough to the goal
      if ((w_next_waypoint_ - robot_loc_).norm() < 0.1) {
        nav_complete_ = true;
