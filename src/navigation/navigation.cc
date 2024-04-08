@@ -464,7 +464,7 @@ tuple<float, float> Navigation::GetCurvature() {
                 }
               }
             } else {
-              angle = max_free_path_angle;
+              angle = angle_of_interest;
             }
           } else {
             if (point[1] < 0) {
@@ -482,7 +482,7 @@ tuple<float, float> Navigation::GetCurvature() {
                 }
               }
             } else {
-              angle = max_free_path_angle;
+              angle = angle_of_interest;
             }
           }
           // float hit_point_angle;
