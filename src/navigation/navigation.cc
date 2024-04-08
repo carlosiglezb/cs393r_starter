@@ -340,36 +340,36 @@ tuple<float, float> Navigation::GetCurvature() {
     Vector2f point_of_interest;
     float free_path_length, clearance, distance_to_goal;
     if (curvature_candidate > -0.01 && curvature_candidate < 0.01) {
-      point_of_interest << goal[0] + base_link_to_front + safety_margin, 0;
-      free_path_length = goal[0];
+      // point_of_interest << goal[0] + base_link_to_front + safety_margin, 0;
+      point_of_interest << 5, 0;
+      free_path_length = 5;  // goal[0];
       clearance = 0.5;
-      distance_to_goal = goal[1];
+      // distance_to_goal = goal[1];
+      distance_to_goal = GetDistance(point_of_interest, goal);
       for (Vector2f point: point_cloud_) {
         if (point[0] <= base_link_to_front + safety_margin) {
           continue;
         }
-        if (point[0] >= goal[0] + base_link_to_front + safety_margin) {
+        if (point[0] >= free_path_length) {
           continue;
         }
         if (abs(point[1]) < base_link_to_side + safety_margin) {  // hit front
           if (point[0] - base_link_to_front - safety_margin < free_path_length) {
-            point_of_interest << point[0], point[1];
+            // point_of_interest << point[0], point[1];
+            point_of_interest << point[0] - base_link_to_front - safety_margin, 0;
             // distance_to_goal = goal[0] - point[0] + safety_margin + base_link_to_front;
             distance_to_goal = GetDistance(point_of_interest, goal);
           }
-          free_path_length = min(free_path_length, point[0] - base_link_to_front - safety_margin);
+          free_path_length = min(free_path_length, point_of_interest[0]);
           clearance = 0;
         } else {
           clearance = min(clearance, abs(point[1]) - base_link_to_side - safety_margin);
           // distance_to_goal = min(distance_to_goal, abs(goal[1]));
         }
       }
-      // scores.push_back(free_path_length + 3 * clearance - 2.0 * distance_to_goal);
-      // free_path_lengths.push_back(free_path_length);
 
-      // visualization::DrawCross(point_of_interest, 0.1, 0xFF0000, local_viz_msg_);
-      Vector2f free_path_point(free_path_length, 0);
-      // visualization::DrawLine(base_link, base_link + free_path_point, 0xFF0000, local_viz_msg_);
+      visualization::DrawCross(point_of_interest, 0.1, 0xFF0000, local_viz_msg_);
+      visualization::DrawLine(base_link, point_of_interest, 0xFF0000, local_viz_msg_);
       continue;
     } else {
       float turning_radius = abs(1 / curvature_candidate);
@@ -388,79 +388,141 @@ tuple<float, float> Navigation::GetCurvature() {
         front_far << base_link_to_front + safety_margin, -base_link_to_side - safety_margin;
       }
       float max_radius = GetDistance(turning_center, front_far);
-      float front_radius = GetDistance(turning_center, front_close);
+      // float front_radius = GetDistance(turning_center, front_close);
 
-      float max_free_path_angle = atan(goal[0] / turning_radius);
-      // float max_free_path_angle = atan(1);
-      // float angle_of_interest = max_free_path_angle;
+      free_path_length = 5;
+      // float max_free_path_angle = atan(goal[0] / turning_radius);
+      float max_free_path_angle = free_path_length / turning_radius;
+      float angle_of_interest = max_free_path_angle;
       // free_path_length = min(max_free_path_angle * turning_radius, goal[0]);
-      free_path_length = 10;
       distance_to_goal = abs(GetDistance(goal, turning_center) - turning_radius);
       clearance = 0.5;
-      if (turning_radius > front_radius) {
-        max_free_path_angle += asin(base_link_to_front / turning_radius);
-      } else {
-        max_free_path_angle += acos((turning_radius - base_link_to_side) / turning_radius);
-      }
+      // if (turning_radius > front_radius) {
+      //   max_free_path_angle += asin(base_link_to_front / turning_radius);
+      // } else {
+      //   max_free_path_angle += acos((turning_radius - base_link_to_side) / turning_radius);
+      // }
       if (curvature_candidate > 0) {
-        point_of_interest << sin(max_free_path_angle) * turning_radius, (1-cos(max_free_path_angle))*turning_radius;
+        if (max_free_path_angle < atan(1)*2) {
+          point_of_interest << sin(max_free_path_angle) * turning_radius, (1 - cos(max_free_path_angle)) * turning_radius;
+        } else if (max_free_path_angle < atan(1)*4) {
+          point_of_interest << cos(max_free_path_angle-atan(1)*2) * turning_radius, (1 + sin(max_free_path_angle-atan(1)*2)) * turning_radius;
+        } else if (max_free_path_angle < atan(1)*6) {
+          point_of_interest << -sin(max_free_path_angle-atan(1)*4) * turning_radius, (1 + cos(max_free_path_angle-atan(1)*4)) * turning_radius;
+        } else {
+          point_of_interest << cos(max_free_path_angle-atan(1)*6) * turning_radius, (1 - sin(max_free_path_angle-atan(1)*6)) * turning_radius;
+        }
+        // point_of_interest << sin(max_free_path_angle) * turning_radius, (1 - cos(max_free_path_angle)) * turning_radius;
       } else {
-        point_of_interest << sin(max_free_path_angle) * turning_radius, (cos(max_free_path_angle)-1)*turning_radius;
+        if (max_free_path_angle < atan(1*2)) {
+          point_of_interest << sin(max_free_path_angle) * turning_radius, (-1 + cos(max_free_path_angle)) * turning_radius;
+        } else if (max_free_path_angle < atan(1)*4) {
+          point_of_interest << cos(max_free_path_angle-atan(1)*2) * turning_radius, (-1 - sin(max_free_path_angle-atan(1)*2)) * turning_radius;
+        } else if (max_free_path_angle < atan(1)*6) {
+          point_of_interest << -sin(max_free_path_angle-atan(1)*4) * turning_radius, (-1 - cos(max_free_path_angle-atan(1)*4)) * turning_radius;
+        } else {
+          point_of_interest << cos(max_free_path_angle-atan(1)*6) * turning_radius, (-1 + sin(max_free_path_angle-atan(1)*6)) * turning_radius;
+        }
+        // point_of_interest << sin(max_free_path_angle) * turning_radius, (cos(max_free_path_angle) - 1) * turning_radius;
       }
 
       for (Vector2f point: point_cloud_) {
-        if (point[0] <= front_far[0]) {
-          continue;
-        }
-        if (abs(point[1]) > abs(turning_center[1])) {
-          continue;
-        }
-        float angle = atan(point[0] / abs(turning_center[1] - point[1]));
+        // if (point[0] <= front_far[0]) {
+        //   continue;
+        // }
+        // if (abs(point[1]) > abs(turning_center[1])) {
+        //   continue;
+        // }
         // if (angle >= max_free_path_angle) {
         //   continue;
         // }
-        if (curvature_candidate > 0 && point[1] < front_far[1]) {
-          continue;
-        } else if (curvature_candidate < 0 && point[1] > front_far[1]) {
-          continue;
-        }
+        // if (curvature_candidate > 0 && point[1] < front_far[1]) {
+        //   continue;
+        // } else if (curvature_candidate < 0 && point[1] > front_far[1]) {
+        //   continue;
+        // }
         float distance_to_center = GetDistance(point, turning_center);
         if (distance_to_center < min_radius) {
           clearance = min(clearance, min_radius - distance_to_center);
         } else if (distance_to_center > max_radius) {
           clearance = min(clearance, distance_to_center - max_radius);
         } else {
-          float hit_point_angle;
-          if (distance_to_center > front_radius) {  // hit front
-            hit_point_angle = asin(front_far[0] / distance_to_center);
-          } else {  // hit side
-            hit_point_angle = acos(min_radius / distance_to_center);
-          }
-          if (angle > hit_point_angle) {
-            if ((angle - hit_point_angle) * turning_radius < free_path_length) {
-              // angle_of_interest = angle;
-              point_of_interest << point[0], point[1];
-              Vector2f free_path_point(turning_radius * sin(hit_point_angle), turning_radius * (1 - cos(hit_point_angle)));
-              distance_to_goal = GetDistance(free_path_point, goal);
-              clearance = 0;
+          float angle;  // = atan(point[0] / abs(turning_center[1] - point[1]));
+          if (turning_center[1] > 0) {
+            if (point[1] > 0) {
+              if (point[0] > 0) {
+                if (point[1] < turning_center[1]) {
+                  angle = atan(point[0] / (turning_center[1] - point[1]));
+                } else {
+                  angle = atan(1) * 2 + atan((point[1] - turning_center[1]) / point[0]);
+                }
+              } else {
+                if (point[1] < turning_center[1]) {
+                  angle = atan(1) * 6 + atan((turning_center[1] - point[1]) / abs(point[0]));
+                } else {
+                  angle = atan(1) * 4 + atan(abs(point[0]) / (point[1] - turning_center[1]));
+                }
+              }
+            } else {
+              angle = max_free_path_angle;
             }
-            free_path_length = min(free_path_length, (angle - hit_point_angle) * turning_radius);
-
+          } else {
+            if (point[1] < 0) {
+              if (point[0] > 0) {
+                if (point[1] > turning_center[1]) {
+                  angle = atan(point[0] / (point[1] - turning_center[1]));
+                } else {
+                  angle = atan(1) * 2 + atan((turning_center[1] - point[1]) / point[1]);
+                }
+              } else {
+                if (point[1] > turning_center[1]) {
+                  angle = atan(1) * 6 + atan((point[1] - turning_center[1]) / abs(point[0]));
+                } else {
+                  angle = atan(1) * 4 + atan(abs(point[0]) / (turning_center[1] - point[1]));
+                }
+              }
+            } else {
+              angle = max_free_path_angle;
+            }
           }
-          // else {
-          //   free_path_length = 0;
+          // float hit_point_angle;
+          // if (distance_to_center > front_radius) {  // hit front
+          //   hit_point_angle = asin(front_far[0] / distance_to_center);
+          // } else {  // hit side
+          //   hit_point_angle = acos(min_radius / distance_to_center);
           // }
+          // if (angle > hit_point_angle) {
+          //   if ((angle - hit_point_angle) * turning_radius < free_path_length) {
+          //     angle_of_interest = angle;
+          //     point_of_interest << point[0], point[1];
+          //     // point_of_interest << turning_radius * sin(hit_point_angle), turning_radius * (1 - cos(hit_point_angle));
+          //     // Vector2f free_path_point(turning_radius * sin(hit_point_angle), turning_radius * (1 - cos(hit_point_angle)));
+          //     distance_to_goal = GetDistance(point_of_interest, goal);
+          //     clearance = 0;
+          //   }
+          //   free_path_length = min(free_path_length, (angle - hit_point_angle) * turning_radius);
+          // }
+          if (angle * turning_radius - base_link_to_front - safety_margin < free_path_length) {
+            angle_of_interest = angle;
+            point_of_interest << point[0], point[1];
+            // point_of_interest << turning_radius * sin(hit_point_angle), turning_radius * (1 - cos(hit_point_angle));
+            // Vector2f free_path_point(turning_radius * sin(hit_point_angle), turning_radius * (1 - cos(hit_point_angle)));
+            distance_to_goal = GetDistance(point_of_interest, goal);
+            clearance = 0;
+          }
+          free_path_length = min(free_path_length, angle * turning_radius - base_link_to_front - safety_margin);
+
         }
       }
       // scores.push_back(free_path_length + 3 * clearance - 2.0 * distance_to_goal);
       // free_path_lengths.push_back(free_path_length);
 
-      // visualization::DrawCross(point_of_interest, 0.1, 0xFF0000, local_viz_msg_);
-      // if (curvature_candidate > 0) {
-      //   visualization::DrawArc(turning_center, turning_radius, -atan(1)*2, angle_of_interest-atan(1)*2, 0xFF0000, local_viz_msg_);
-      // } else {
-      //   visualization::DrawArc(turning_center, turning_radius, atan(1)*2-angle_of_interest, atan(1)*2, 0xFF0000, local_viz_msg_);
-      // }
+      visualization::DrawCross(point_of_interest, 0.1, 0xFF0000, local_viz_msg_);
+      if (curvature_candidate > 0) {
+        visualization::DrawArc(turning_center, turning_radius, -atan(1)*2, angle_of_interest-atan(1)*2, 0xFF0000, local_viz_msg_);
+      } else {
+        visualization::DrawArc(turning_center, turning_radius, atan(1)*2-angle_of_interest, atan(1)*2, 0xFF0000, local_viz_msg_);
+      }
     }
     scores.push_back(free_path_length + 3 * clearance - 10.0 * distance_to_goal);
     free_path_lengths.push_back(free_path_length);
@@ -477,6 +539,15 @@ tuple<float, float> Navigation::GetCurvature() {
       distance_to_goal = free_path_lengths[i];
     }
   }
+  // cout << "\n";
+  if (distance_to_goal <= 0.01) {
+    if (goal[1] > 0) {
+      curvature = -1;
+    } else {
+      curvature = 1;
+    }
+    // curvature = 0;
+  }
   return std::make_tuple(curvature, distance_to_goal);
 }
 
@@ -489,6 +560,9 @@ float Navigation::GetVelocity(float distance_to_goal) {  // TOC
 
   float x_3 = pow(robot_vel_[0], 2) / (2 * max_dec) + latency * robot_vel_[0];
   x_3 += robot_vel_[0] * latency;
+  if (distance_to_goal <= 0.01) {
+    return -1;
+  }
   if (x_3 >= distance_to_goal) {  // Deceleration
     return robot_vel_[0] - max_dec * update_interval;
   } else if (robot_vel_[0] >= max_vel) {  // Cruise
