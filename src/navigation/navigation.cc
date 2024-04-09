@@ -234,7 +234,8 @@ void Navigation::Run() {
   }
 
    // Re-plan if car comes to a stop and has not arrived to next waypoint
-   if (!b_replanning_ && !nav_complete_ && (std::abs(new_vel) <= 0.08)) {
+   bool b_just_started_moving = n_waypoint_count_ >= (int(rrt_star_.getRRTPathPoints().size()) - 2);
+   if (!b_replanning_ && !b_just_started_moving && !nav_complete_ && (std::abs(new_vel) <= 0.08)) { //TODO think of acceleration
      b_replanning_ = true;
    }
 
