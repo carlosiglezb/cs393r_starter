@@ -464,7 +464,7 @@ tuple<float, float> Navigation::GetCurvature() {
                 }
               }
             } else {
-              angle = angle_of_interest;
+              continue;
             }
           } else {
             if (point[1] < 0) {
@@ -482,7 +482,7 @@ tuple<float, float> Navigation::GetCurvature() {
                 }
               }
             } else {
-              angle = angle_of_interest;
+              continue;
             }
           }
           // float hit_point_angle;
@@ -524,7 +524,7 @@ tuple<float, float> Navigation::GetCurvature() {
         visualization::DrawArc(turning_center, turning_radius, atan(1)*2-angle_of_interest, atan(1)*2, 0xFF0000, local_viz_msg_);
       }
     }
-    scores.push_back(free_path_length + 3 * clearance - 10.0 * distance_to_goal);
+    scores.push_back(free_path_length + 5 * clearance - 15.0 * distance_to_goal);
     free_path_lengths.push_back(free_path_length);
   }
 
@@ -539,15 +539,6 @@ tuple<float, float> Navigation::GetCurvature() {
       distance_to_goal = free_path_lengths[i];
     }
   }
-  // cout << "\n";
-  if (distance_to_goal <= 0.01) {
-    if (goal[1] > 0) {
-      curvature = -1;
-    } else {
-      curvature = 1;
-    }
-    // curvature = 0;
-  }
   return std::make_tuple(curvature, distance_to_goal);
 }
 
@@ -560,9 +551,6 @@ float Navigation::GetVelocity(float distance_to_goal) {  // TOC
 
   float x_3 = pow(robot_vel_[0], 2) / (2 * max_dec) + latency * robot_vel_[0];
   x_3 += robot_vel_[0] * latency;
-  if (distance_to_goal <= 0.01) {
-    return -1;
-  }
   if (x_3 >= distance_to_goal) {  // Deceleration
     return robot_vel_[0] - max_dec * update_interval;
   } else if (robot_vel_[0] >= max_vel) {  // Cruise
