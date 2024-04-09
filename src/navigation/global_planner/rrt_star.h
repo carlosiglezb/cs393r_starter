@@ -26,7 +26,7 @@ public:
         double maxX=45.,
         double minY=-30.,
         double maxY=30,
-        float minDistanceToObstacle=0.2);    // done
+        float minDistanceToObstacle=0.4);    // done
     ~RRTStar();   // done
     void generate(const Point& start, const Point& end);  // done
     void readObstaclesFromFile(const std::string& filename);  // done

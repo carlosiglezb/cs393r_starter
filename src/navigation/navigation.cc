@@ -98,6 +98,9 @@ Navigation::Navigation(const string& map_name, ros::NodeHandle* n) :
   rev_drive_counter_ = 0;
   b_nav_goal_set_ = false;
   b_last_waypoint_ = false;
+  b_replanning_ = false;
+  b_wait_replan_to_finish_ = false;
+  stop_counter_ = 0;
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -200,6 +203,18 @@ void Navigation::Run() {
 
   // TODO see if we come across another waypoint when deviated due to obstacle
 
+  // stop for a second to give time for planner to finish
+  if (b_wait_replan_to_finish_) {
+    if (stop_counter_ < 20) {
+      stop_counter_++;
+      drive_msg_.velocity = 0.0;
+    } else {
+      b_wait_replan_to_finish_ = false;
+      stop_counter_ = 0;
+    }
+    return;
+  }
+
   if (!b_replanning_) {
     // Move to next waypoint
     if (!b_last_waypoint_ && ((w_next_waypoint_ - robot_loc_).norm() - 1.0 < 0.)) {
@@ -255,6 +270,7 @@ void Navigation::Run() {
        // update waypoints
        n_waypoint_count_ = rrt_star_.getRRTPathPoints().size() - 1;
        w_next_waypoint_ << rrt_star_.getRRTPathPoint(n_waypoint_count_);
+       b_wait_replan_to_finish_ = true;
      }
    }
 
@@ -462,7 +478,7 @@ tuple<float, float> Navigation::GetCurvature() {
       //   visualization::DrawArc(turning_center, turning_radius, atan(1)*2-angle_of_interest, atan(1)*2, 0xFF0000, local_viz_msg_);
       // }
     }
-    scores.push_back(free_path_length + 3 * clearance - 10.0 * distance_to_goal);
+    scores.push_back(free_path_length + 5 * clearance - 15.0 * distance_to_goal);
     free_path_lengths.push_back(free_path_length);
   }
 

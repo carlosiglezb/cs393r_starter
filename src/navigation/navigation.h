@@ -125,6 +125,8 @@ class Navigation {
   bool b_nav_goal_set_;
   bool b_last_waypoint_;
   bool b_replanning_;
+  bool b_wait_replan_to_finish_;
+  unsigned int stop_counter_;
 
   // Visualization for RRT plan
   std::vector<Eigen::Vector2f> rrt_path_points_;

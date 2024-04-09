@@ -88,9 +88,9 @@ bool RRTStar::isPathFree(const Point& newStart, const Point& newEnd, double _min
                                                  &r0,
                                                  &r1);
       if (res > 0) {
-        std::cout << "Point " << newEnd.x << ", " << newEnd.y <<
-                  " is too close to obstacle waypoint " <<
-                  waypoint.transpose() << std::endl;
+//        std::cout << "Point " << newEnd.x << ", " << newEnd.y <<
+//                  " is too close to obstacle waypoint " <<
+//                  waypoint.transpose() << std::endl;
         return false;
       }
     }
